@@ -1,7 +1,3 @@
-SRC += side.c
-SRC += rf.c
-SRC += sleep.c
-SRC += side_driver.c
-SRC += side_logo.c
-QUANTUM_LIB_SRC += uart.c
+SRC += side.c rf.c sleep.c side_driver.c side_logo.c rf_driver.c
+UART_DRIVER_REQUIRED = yes
 

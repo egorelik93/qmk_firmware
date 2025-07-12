@@ -44,6 +44,7 @@ uint16_t conkb_report            = 0;
 uint16_t syskb_report            = 0;
 uint8_t  sync_lost               = 0;
 uint8_t  disconnect_delay        = 0;
+bool     uart_repeat_flag        = 0;
 
 extern DEV_INFO_STRUCT dev_info;
 extern host_driver_t  *m_host_driver;
@@ -64,9 +65,6 @@ void           uart_receive_pro(void);
 void           break_all_key(void);
 uint16_t       host_last_consumer_usage(void);
 
-
-
-/**
  * @brief Uart auto nkey send
  */
 bool f_bit_kb_act = 0;
@@ -141,7 +139,7 @@ void uart_send_report_repeat(void)
 
     if (timer_elapsed32(interval_timer) > 50) {
         interval_timer = timer_read32();
-        if (no_act_time <= 200) {
+        if (no_act_time <= 2000) {
             uart_send_report(CMD_RPT_BYTE_KB, bytekb_report_buf, 8);
             wait_us(200);
 
@@ -398,6 +396,35 @@ uint8_t uart_send_cmd(uint8_t cmd, uint8_t wait_ack, uint8_t delayms) {
             break;
         }
 
+        case CMD_SET_24G_NAME: {
+            Usart_Mgr.TXDBuf[3]  = 44;  // uart data len
+            Usart_Mgr.TXDBuf[4]  = 44;  // name valid len
+            Usart_Mgr.TXDBuf[5]  = 3;   // 固定
+            Usart_Mgr.TXDBuf[6]  = 'N';
+            Usart_Mgr.TXDBuf[8]  = 'u';
+            Usart_Mgr.TXDBuf[10] = 'P';
+            Usart_Mgr.TXDBuf[12] = 'h';
+            Usart_Mgr.TXDBuf[14] = 'y';
+            Usart_Mgr.TXDBuf[16] = ' ';
+            Usart_Mgr.TXDBuf[18] = 'A';
+            Usart_Mgr.TXDBuf[20] = 'i';
+            Usart_Mgr.TXDBuf[22] = 'r';
+            Usart_Mgr.TXDBuf[24] = '7';
+            Usart_Mgr.TXDBuf[26] = '5';
+            Usart_Mgr.TXDBuf[28] = ' ';
+            Usart_Mgr.TXDBuf[30] = 'V';
+            Usart_Mgr.TXDBuf[32] = '2';
+            Usart_Mgr.TXDBuf[34] = ' ';
+            Usart_Mgr.TXDBuf[36] = 'D';
+            Usart_Mgr.TXDBuf[38] = 'o';
+            Usart_Mgr.TXDBuf[40] = 'n';
+            Usart_Mgr.TXDBuf[42] = 'g';
+            Usart_Mgr.TXDBuf[44] = 'l';
+            Usart_Mgr.TXDBuf[46] = 'e';
+            Usart_Mgr.TXDBuf[48] = get_checksum(Usart_Mgr.TXDBuf + 4, Usart_Mgr.TXDBuf[3]);  // sum
+            break;
+        }
+
         case CMD_READ_DATA: {
             Usart_Mgr.TXDBuf[3] = 2;
             Usart_Mgr.TXDBuf[4] = 0x00;
@@ -489,6 +516,10 @@ void dev_sts_sync(void) {
             if (link_state_temp != RF_CONNECT) {
                 link_state_temp   = RF_CONNECT;
                 rf_link_show_time = 0;
+                if (dev_info.link_mode == LINK_RF_24) {
+                    uart_send_cmd(CMD_SET_24G_NAME, 10, 30);   
+                }
+
             }
         }
     }
@@ -509,13 +540,28 @@ void dev_sts_sync(void) {
  * @param Length data length
  */
 void UART_Send_Bytes(uint8_t *Buffer, uint32_t Length) {
-    gpio_write_pin_low(NRF_WAKEUP_PIN);
-    wait_us(50);
-
-    uart_transmit(Buffer, Length);
-
-    wait_us(50 + Length * 30);
-    gpio_write_pin_high(NRF_WAKEUP_PIN);
+    if(uart_repeat_flag) {
+        for(uint8_t i = 0;i<3;i++)
+        {
+            gpio_write_pin_low(NRF_WAKEUP_PIN);
+            wait_us(50);
+        
+            uart_transmit(Buffer, Length);
+        
+            wait_us(50 + Length * 32);
+            gpio_write_pin_high(NRF_WAKEUP_PIN);
+        
+            wait_us(200);      
+        }        
+    } else {
+            gpio_write_pin_low(NRF_WAKEUP_PIN);
+            wait_us(50);
+        
+            uart_transmit(Buffer, Length);
+        
+            wait_us(50 + Length * 32);
+            gpio_write_pin_high(NRF_WAKEUP_PIN);
+    }
 }
 
 /**
@@ -554,7 +600,11 @@ void uart_send_report(uint8_t report_type, uint8_t *report_buf, uint8_t report_s
     memcpy(&Usart_Mgr.TXDBuf[4], report_buf, report_size);
     Usart_Mgr.TXDBuf[4 + report_size] = get_checksum(&Usart_Mgr.TXDBuf[4], report_size);
 
+    uart_repeat_flag = 1;
+
     UART_Send_Bytes(&Usart_Mgr.TXDBuf[0], report_size + 5);
+
+    uart_repeat_flag = 0;
 
     wait_us(200);
 }
@@ -645,4 +695,6 @@ void rf_device_init(void) {
     }
 
     uart_send_cmd(CMD_SET_NAME, 10, 20);
+
+    uart_send_cmd(CMD_SET_24G_NAME, 10, 20);
 }

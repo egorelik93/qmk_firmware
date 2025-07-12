@@ -70,27 +70,8 @@ uint8_t r_temp, g_temp, b_temp;
 extern DEV_INFO_STRUCT dev_info;
 extern bool f_bat_hold;
 extern user_config_t user_config;
-extern uint8_t g_pwm_buffer[DRIVER_COUNT][192];
 extern uint8_t rf_blink_cnt;
 extern uint16_t rf_link_show_time;
-
-/**
- * @brief is_side_rgb_off
- *
- * @return true
- * @return false
- */
-bool is_side_rgb_off(void)
-{
-    is31_led led;
-    for (int i = SIDE_INDEX; i < SIDE_INDEX + 10; i++) {
-        memcpy_P(&led, (&g_is31_leds[i]), sizeof(led));
-        if ((g_pwm_buffer[led.driver][led.r] != 0) || (g_pwm_buffer[led.driver][led.g] != 0) || (g_pwm_buffer[led.driver][led.b] != 0)) {
-            return false;
-        }
-    }
-    return true;
-}
 
 /**
  * @brief suspend_power_down_kb
@@ -139,7 +120,7 @@ void light_level_control(uint8_t brighten)
  * @param  dir: 0 - decrease, 1 - increase.
  * @note  save to eeprom.
  */
-void light_speed_contol(uint8_t fast)
+void light_speed_control(uint8_t fast)
 {
     if ((side_speed) > LIGHT_SPEED_MAX)
         (side_speed) = LIGHT_SPEED_MAX / 2;
