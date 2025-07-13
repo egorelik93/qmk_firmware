@@ -133,8 +133,15 @@ led_t host_keyboard_led_state(void) {
     return (led_t)host_keyboard_leds();
 }
 
+extern void uart_send_report_repeat(void);
+extern void uart_send_mouse_report(void);
+extern void uart_send_consumer_report(void);
+extern void uart_send_system_report(void);
+
 /* send report */
 void host_keyboard_send(report_keyboard_t *report) {
+    uart_send_report_repeat();
+
     host_driver_t *driver = host_get_active_driver();
     if (!driver || !driver->send_keyboard) return;
 
@@ -169,6 +176,8 @@ void host_nkro_send(report_nkro_t *report) {
 }
 
 void host_mouse_send(report_mouse_t *report) {
+    uart_send_mouse_report();
+
     host_driver_t *driver = host_get_active_driver();
     if (!driver || !driver->send_mouse) return;
 
@@ -187,6 +196,8 @@ void host_system_send(uint16_t usage) {
     if (usage == last_system_usage) return;
     last_system_usage = usage;
 
+    uart_send_system_report();
+
     host_driver_t *driver = host_get_active_driver();
     if (!driver || !driver->send_extra) return;
 
@@ -200,6 +211,8 @@ void host_system_send(uint16_t usage) {
 void host_consumer_send(uint16_t usage) {
     if (usage == last_consumer_usage) return;
     last_consumer_usage = usage;
+
+    uart_send_consumer_report();
 
     host_driver_t *driver = host_get_active_driver();
     if (!driver || !driver->send_extra) return;
