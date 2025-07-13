@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "uart.h" // qmk uart.h
 #include "ansi.h"
 #include "rf_driver.h"
+#include "usb_device_state.h"
 
 USART_MGR_STRUCT Usart_Mgr;
 #define RX_SBYTE    Usart_Mgr.RXDBuf[0]
@@ -65,6 +66,7 @@ void           uart_receive_pro(void);
 void           break_all_key(void);
 uint16_t       host_last_consumer_usage(void);
 
+/**
  * @brief Uart auto nkey send
  */
 bool f_bit_kb_act = 0;
@@ -135,7 +137,7 @@ void uart_send_report_repeat(void)
     static uint32_t interval_timer = 0;
 
     if (dev_info.link_mode == LINK_USB) return;
-    keyboard_protocol          = 1;
+    usb_device_state_set_protocol(1);
 
     if (timer_elapsed32(interval_timer) > 50) {
         interval_timer = timer_read32();

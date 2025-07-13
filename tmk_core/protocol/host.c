@@ -138,7 +138,6 @@ void host_keyboard_send(report_keyboard_t *report) {
     host_driver_t *driver = host_get_active_driver();
     if (!driver || !driver->send_keyboard) return;
 
-
 #ifdef KEYBOARD_SHARED_EP
     report->report_id = REPORT_ID_KEYBOARD;
 #endif
@@ -173,7 +172,6 @@ void host_mouse_send(report_mouse_t *report) {
     host_driver_t *driver = host_get_active_driver();
     if (!driver || !driver->send_mouse) return;
 
-
 #ifdef MOUSE_SHARED_EP
     report->report_id = REPORT_ID_MOUSE;
 #endif
@@ -202,8 +200,6 @@ void host_system_send(uint16_t usage) {
 void host_consumer_send(uint16_t usage) {
     if (usage == last_consumer_usage) return;
     last_consumer_usage = usage;
-    
-    uart_send_consumer_report(); 
 
     host_driver_t *driver = host_get_active_driver();
     if (!driver || !driver->send_extra) return;
