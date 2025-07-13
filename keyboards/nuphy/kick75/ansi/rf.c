@@ -1,19 +1,5 @@
-/*
-Copyright 2023 @ Nuphy <https://nuphy.com/>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2023 Persama (@Persama)
+// SPDX-License-Identifier: GPL-2.0-or-later
 #include "ansi.h"
 #include "uart.h"  // qmk uart.h
 #include "rf_driver.h"
@@ -42,7 +28,6 @@ uint16_t syskb_report            = 0;
 uint8_t  sync_lost               = 0;
 uint8_t  disconnect_delay        = 0;
 bool     uart_repeat_flag        = 0;
-
 
 extern DEV_INFO_STRUCT dev_info;
 extern host_driver_t  *m_host_driver;
@@ -136,7 +121,7 @@ void uart_send_report_func(void)
     if (dev_info.link_mode == LINK_USB) return;
     keyboard_protocol          = 1;
 
-    if (timer_elapsed32(interval_timer) > 300) {
+    if (timer_elapsed32(interval_timer) > 50) {
         interval_timer = timer_read32();
         if (no_act_time <= 2000) {
             uart_send_report(CMD_RPT_BYTE_KB, bytekb_report_buf, 8);
@@ -379,57 +364,52 @@ uint8_t uart_send_cmd(uint8_t cmd, uint8_t wait_ack, uint8_t delayms) {
             Usart_Mgr.TXDBuf[5] = POWER_DOWN_DELAY;
             break;
         }
+
         case CMD_SET_NAME: {
-            Usart_Mgr.TXDBuf[3]  = 18;
-            Usart_Mgr.TXDBuf[4]  = 1;  
-            Usart_Mgr.TXDBuf[5]  = 16;   
-            Usart_Mgr.TXDBuf[6]  = 'N';
-            Usart_Mgr.TXDBuf[7]  = 'u';
-            Usart_Mgr.TXDBuf[8]  = 'P';
-            Usart_Mgr.TXDBuf[9]  = 'h';
-            Usart_Mgr.TXDBuf[10] = 'y';
-            Usart_Mgr.TXDBuf[11] = ' ';
-            Usart_Mgr.TXDBuf[12] = 'H';
-            Usart_Mgr.TXDBuf[13] = 'a';
-            Usart_Mgr.TXDBuf[14] = 'l';
-            Usart_Mgr.TXDBuf[15] = 'o';
-            Usart_Mgr.TXDBuf[16] = '7';
-            Usart_Mgr.TXDBuf[17] = '5';
-            Usart_Mgr.TXDBuf[18] = ' ';   
-            Usart_Mgr.TXDBuf[19] = 'V';   
-            Usart_Mgr.TXDBuf[20] = '2';   
-            Usart_Mgr.TXDBuf[21] = '-';   
-            Usart_Mgr.TXDBuf[22] = get_checksum(Usart_Mgr.TXDBuf + 4, Usart_Mgr.TXDBuf[3]);  // sum
+            Usart_Mgr.TXDBuf[3]  = 15;                                                       // data len
+            Usart_Mgr.TXDBuf[4]  = 1;                                                        // type     0-带尾缀    1-带尾缀
+            Usart_Mgr.TXDBuf[5]  = 13;                                                       // data: ble name len
+            Usart_Mgr.TXDBuf[6]  = 'N';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[7]  = 'u';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[8]  = 'P';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[9]  = 'h';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[10] = 'y';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[11] = ' ';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[12] = 'K';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[13] = 'i';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[14] = 'c';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[15] = 'k';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[16] = '7';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[17] = '5';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[18] = '-';                                                      // data: ble name
+            Usart_Mgr.TXDBuf[19] = get_checksum(Usart_Mgr.TXDBuf + 4, Usart_Mgr.TXDBuf[3]);  // sum
             break;
         }
 
         case CMD_SET_24G_NAME: {
-            Usart_Mgr.TXDBuf[3]  = 46;
-            Usart_Mgr.TXDBuf[4]  = 46;
-            Usart_Mgr.TXDBuf[5]  = 3;      
+            Usart_Mgr.TXDBuf[3]  = 40;          // uart data len
+            Usart_Mgr.TXDBuf[4]  = 40;          // name valid len
+            Usart_Mgr.TXDBuf[5]  = 3;           
             Usart_Mgr.TXDBuf[6]  = 'N';
             Usart_Mgr.TXDBuf[8]  = 'u';
             Usart_Mgr.TXDBuf[10] = 'P';
             Usart_Mgr.TXDBuf[12] = 'h';
             Usart_Mgr.TXDBuf[14] = 'y';
             Usart_Mgr.TXDBuf[16] = ' ';
-            Usart_Mgr.TXDBuf[18] = 'H';
-            Usart_Mgr.TXDBuf[20] = 'a';
-            Usart_Mgr.TXDBuf[22] = 'l';
-            Usart_Mgr.TXDBuf[24] = 'o';
+            Usart_Mgr.TXDBuf[18] = 'K';
+            Usart_Mgr.TXDBuf[20] = 'i';
+            Usart_Mgr.TXDBuf[22] = 'c';
+            Usart_Mgr.TXDBuf[24] = 'k';
             Usart_Mgr.TXDBuf[26] = '7';
             Usart_Mgr.TXDBuf[28] = '5';
             Usart_Mgr.TXDBuf[30] = ' ';
-            Usart_Mgr.TXDBuf[32] = 'V';
-            Usart_Mgr.TXDBuf[34] = '2';
-            Usart_Mgr.TXDBuf[36] = ' ';
-            Usart_Mgr.TXDBuf[38] = 'D';
-            Usart_Mgr.TXDBuf[40] = 'o';
-            Usart_Mgr.TXDBuf[42] = 'n';
-            Usart_Mgr.TXDBuf[44] = 'g';
-            Usart_Mgr.TXDBuf[46] = 'l';
-            Usart_Mgr.TXDBuf[48] = 'e';
-            Usart_Mgr.TXDBuf[50] = get_checksum(Usart_Mgr.TXDBuf + 4, Usart_Mgr.TXDBuf[3]);  // sum
+            Usart_Mgr.TXDBuf[32] = 'D';
+            Usart_Mgr.TXDBuf[34] = 'o';
+            Usart_Mgr.TXDBuf[36] = 'n';
+            Usart_Mgr.TXDBuf[38] = 'g';
+            Usart_Mgr.TXDBuf[40] = 'l';
+            Usart_Mgr.TXDBuf[42] = 'e';
+            Usart_Mgr.TXDBuf[44] = get_checksum(Usart_Mgr.TXDBuf + 4, Usart_Mgr.TXDBuf[3]);  // sum
             break;
         }
 
@@ -525,6 +505,7 @@ void dev_sts_sync(void) {
                 link_state_temp   = RF_CONNECT;
                 rf_link_show_time = 0;
                 if (dev_info.link_mode == LINK_RF_24) {
+                    // 连接后设置一次2.4G名称
                     uart_send_cmd(CMD_SET_24G_NAME, 10, 30);
                 }
             }
@@ -539,34 +520,6 @@ void dev_sts_sync(void) {
             f_rf_reset = 1;
         }
     }
-}
-
-#define BAT_CFG_LEN     80
-const uint8_t battery_acfg_tab[BAT_CFG_LEN] = {
-    0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0xB4, 0xC2, 0xB4, 0xA8, 0x9B, 0x96, 0xF8, 0xF2,
-    0xF3, 0xC3, 0xA8, 0x8A, 0x65, 0x55, 0x49, 0x41,
-    0x39, 0x34, 0x2E, 0xA9, 0xAE, 0xD3, 0x28, 0xFF,
-    0xFF, 0xF1, 0xD3, 0xCE, 0xCB, 0xC8, 0xC3, 0xB8,
-    0xAE, 0xA7, 0xA8, 0xA6, 0x82, 0x6D, 0x65, 0x63,
-    0x69, 0x79, 0x8D, 0xA4, 0xB7, 0xC8, 0xA4, 0x16,
-    0x20, 0x00, 0xA7, 0x10, 0x00, 0xB1, 0x28, 0x00,
-    0x00, 0x00, 0x64, 0x43, 0xC0, 0x53, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81,  
-};
-
-void UART_Send_BatCfg(void) 
-{
-    uint8_t buf[128] = {0};
-
-    buf[0] = UART_HEAD;       
-    buf[1] = CMD_WBAT_CFG; 
-    buf[2] = 0x01;           
-    buf[3] = BAT_CFG_LEN;   
-    memcpy(&buf[4], battery_acfg_tab, BAT_CFG_LEN);
-    buf[4 + BAT_CFG_LEN] = get_checksum(&buf[4], BAT_CFG_LEN);
-    UART_Send_Bytes(buf, BAT_CFG_LEN + 5);
-    wait_ms(50);
 }
 
 /**
@@ -728,8 +681,6 @@ void rf_device_init(void) {
         uart_receive_pro();
         if (f_rf_sts_sysc_ok) break;
     }
-
-    UART_Send_BatCfg();
 
     uart_send_cmd(CMD_SET_NAME, 10, 20);
 

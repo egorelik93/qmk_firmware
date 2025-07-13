@@ -4,7 +4,7 @@
     "usb":{
         "vid": "0x19F5",
         "pid": "0x3275",
-        "device_version": "1.1.6",
+        "device_version": "1.1.8",
         "no_startup_check": true
     },
     "features": {
