@@ -34,9 +34,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define SD1_RX_PAL_MODE                     0
 
 #define EECONFIG_KB_DATA_SIZE               8
-#define EECONFIG_USER_DATA_SIZE             8
-
-#define RGB_MATRIX_DEFAULT_MODE             RGB_MATRIX_CYCLE_LEFT_RIGHT
 
 #define WS2812_TIMING       850
 #define WS2812_T1H          700
