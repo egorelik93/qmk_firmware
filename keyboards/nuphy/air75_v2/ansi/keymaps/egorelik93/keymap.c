@@ -93,34 +93,28 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 // for letter keys I do not want to accidentally hold
                 if (!record->tap.count || record->tap.interrupted) {
                     o_prefix_active = true;
-                    vi_command_sent = false;
                     return false;
                 }
             } else {
                 o_prefix_active = false;
-                vi_command_sent = false;
             }
         case EVIL_U2D:
             if (record->event.pressed && !any_vi_prefix_active) {
                 if (!record->tap.count || record->tap.interrupted) {
                     u_prefix_active = true;
-                    vi_command_sent = false;
                     return false;
                 }
             } else {
                 u_prefix_active = false;
-                vi_command_sent = false;
             }
         case EVIL_Y:
             if (record->event.pressed && !any_vi_prefix_active) {
                 if (!record->tap.count || record->tap.interrupted) {
                     y_prefix_active = true;
-                    vi_command_sent = false;
                     return false;
                 }
             } else {
                 y_prefix_active = false;
-                vi_command_sent = false;
             }
         default:
             if (any_vi_prefix_active
@@ -135,8 +129,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 if (y_prefix_active) {
                     tap_code(KC_Y);
                 }
-
-                vi_command_sent = true;
             }
     }
     return true;
