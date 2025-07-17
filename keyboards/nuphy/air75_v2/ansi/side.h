@@ -15,7 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define SIDE_BRIGHT_MAX 4
+// clang-format off
+#define SIDE_BRIGHT_MAX 5
 #define SIDE_SPEED_MAX 4
 #define SIDE_COLOUR_MAX 8
 
@@ -24,6 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define RF_LED_LINK_PERIOD 500
 #define RF_LED_PAIR_PERIOD 250
+// clang-format on
 
 /* side rgb mode */
 enum {
