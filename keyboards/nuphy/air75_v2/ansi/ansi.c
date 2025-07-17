@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "kb_util.h"
 #include "ansi.h"
 #include "usb_main.h"
+#include "mcu_pwr.h"
 
 extern bool            f_rf_sw_press;
 extern bool            f_sleep_show;
@@ -30,15 +31,25 @@ extern uint8_t         rf_sw_temp;
 extern uint16_t        rf_sw_press_delay;
 extern uint16_t        rf_linking_time;
 extern kb_config_t     kb_config;
-extern DEV_INFO_STRUCT dev_info;
+
+bool pre_process_record_kb(uint16_t keycode, keyrecord_t *record) {
+    no_act_time     = 0;
+    rf_linking_time = 0;
+
+    // wakeup check for light sleep/no sleep - fire this immediately to not lose wake keys.
+    if (f_wakeup_prepare) {
+        f_wakeup_prepare = 0;
+        if (kb_config.sleep_mode) exit_light_sleep();
+    }
+
+    return pre_process_record_user(keycode, record);
+}
 
 /* qmk process record */
 bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     if (!process_record_user(keycode, record)) {
         return false;
     }
-    no_act_time     = 0;
-    rf_linking_time = 0;
 
     switch (keycode) {
         case RF_DFU:
@@ -68,12 +79,8 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                 }
             } else if (f_rf_sw_press) {
                 f_rf_sw_press = 0;
-
                 if (rf_sw_press_delay < RF_LONG_PRESS_DELAY) {
-                    dev_info.link_mode   = rf_sw_temp;
-                    dev_info.rf_channel  = rf_sw_temp;
-                    dev_info.ble_channel = rf_sw_temp;
-                    uart_send_cmd(CMD_SET_LINK, 10, 20);
+                    link_mode_set();
                 }
             }
             return false;
@@ -87,12 +94,8 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                 }
             } else if (f_rf_sw_press) {
                 f_rf_sw_press = 0;
-
                 if (rf_sw_press_delay < RF_LONG_PRESS_DELAY) {
-                    dev_info.link_mode   = rf_sw_temp;
-                    dev_info.rf_channel  = rf_sw_temp;
-                    dev_info.ble_channel = rf_sw_temp;
-                    uart_send_cmd(CMD_SET_LINK, 10, 20);
+                    link_mode_set();
                 }
             }
             return false;
@@ -106,12 +109,8 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                 }
             } else if (f_rf_sw_press) {
                 f_rf_sw_press = 0;
-
                 if (rf_sw_press_delay < RF_LONG_PRESS_DELAY) {
-                    dev_info.link_mode   = rf_sw_temp;
-                    dev_info.rf_channel  = rf_sw_temp;
-                    dev_info.ble_channel = rf_sw_temp;
-                    uart_send_cmd(CMD_SET_LINK, 10, 20);
+                    link_mode_set();
                 }
             }
             return false;
@@ -125,12 +124,8 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                 }
             } else if (f_rf_sw_press) {
                 f_rf_sw_press = 0;
-
                 if (rf_sw_press_delay < RF_LONG_PRESS_DELAY) {
-                    dev_info.link_mode   = rf_sw_temp;
-                    dev_info.rf_channel  = rf_sw_temp;
-                    dev_info.ble_channel = rf_sw_temp;
-                    uart_send_cmd(CMD_SET_LINK, 10, 20);
+                    link_mode_set();
                 }
             }
             return false;
@@ -260,13 +255,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
         case SLEEP_MODE:
             if (record->event.pressed) {
-                if (kb_config.sleep_enable) {
-                    kb_config.sleep_enable = false;
-                } else {
-                    kb_config.sleep_enable = true;
-                }
-                f_sleep_show = 1;
-                eeconfig_update_kb_datablock(&kb_config, 0, EECONFIG_KB_DATA_SIZE);
+                toggle_sleep_mode();
             }
             return false;
 
@@ -284,22 +273,67 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             f_rgb_test_press = record->event.pressed;
             return false;
 
+        case LINK_TO:
+            if (record->event.pressed) {
+                uint16_t mask = LINK_TIMEOUT ^ LINK_TIMEOUT_ALT;
+                kb_config.rf_link_timeout ^= mask; // XOR swap
+                eeconfig_update_kb_datablock(&kb_config, 0, EECONFIG_KB_DATA_SIZE);
+            }
+            return false;
+
+        case RM_VALU: // ensure LED powers on with brightness increase
+            if (record->event.pressed) {
+                pwr_rgb_led_on();
+            }
+            return true;
+
+        case KB_SLP:
+            if (record->event.pressed) {
+                uint16_t mask = (100 * 30) ^ SLEEP_TIME_DELAY; // 30s or default
+                sleep_time_delay ^= mask;                      // XOR swap
+            }
+            return false;
+
         default:
             return true;
     }
     return true;
 }
 
+// self note - this won't get called if RGB matrix is suspended or if there's no effect
 bool rgb_matrix_indicators_kb(void) {
     if (!rgb_matrix_indicators_user()) {
         return false;
     }
+
+    // JinCao version: (f_bat_num_show || f_bat_hold)
     if (f_bat_num_show) {
-        num_led_show();
+        // In the Original version, the number keys are lit up like a battery bar.
+        // This is nice, but AFAIK sort of redundant with the side bar.
+        // num_led_show();
+
+        // In the JinCao version, the lit-up F-key and number form a percentage.
+        bat_pct_led_kb();
     }
 
+    if (debug_enable) {
+        user_set_rgb_color(56, 0x80, 0x00, 0x00);
+    }
+
+    // JinCao customization
+    // light up corresponding BT mode key during connection
+    if (rf_blink_cnt && dev_info.link_mode >= LINK_BT_1 && dev_info.link_mode <= LINK_BT_3) {
+        user_set_rgb_color(30 - dev_info.link_mode, 0, 0, 0x80);
+    }
+    
+    // Original
     // fix power-on brightness is abnormal
     rgb_matrix_set_color(RGB_MATRIX_LED_COUNT - 1, 0, 0, 0);
+
+    // JinCao version
+    // power down unused LEDs
+    led_power_handle();
+
     return true;
 }
 
@@ -312,7 +346,7 @@ void keyboard_post_init_kb(void) {
 
     break_all_key();
     dial_sw_fast_scan();
-    londing_eeprom_data();
+    load_eeprom_data();
     keyboard_post_init_user();
 }
 

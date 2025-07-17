@@ -33,7 +33,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define UART_RX_PIN B7
 #define UART_RX_PAL_MODE 0
 
-#define EECONFIG_KB_DATA_SIZE 8
+#define EECONFIG_KB_DATA_SIZE 10 // match used byte size of kb_config_t + 1 (seems to need extra byte)
 
 #define WS2812_TIMING 850
 #define WS2812_T1H 700
