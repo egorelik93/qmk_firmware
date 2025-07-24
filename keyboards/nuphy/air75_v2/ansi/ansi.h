@@ -17,7 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#include "quantum.h"
+#include "color.h"
+#include "quantum_keycodes.h"
 
 enum custom_keycodes {
     RF_DFU = QK_KB_0,
@@ -48,7 +49,34 @@ enum custom_keycodes {
     BAT_NUM,
     RGB_TEST,
     LINK_TO,
-    KB_SLP
+    KB_SLP,
+
+    WIN_LOCK,
+    SHIFT_GRV,
+
+    RIGHT_SIDE_VAI,
+    RIGHT_SIDE_VAD,
+    RIGHT_SIDE_MOD,
+    RIGHT_SIDE_HUI,
+    RIGHT_SIDE_SPI,
+    RIGHT_SIDE_SPD,
+    TOG_USB_SLP,
+    TOG_CAPS_IND,
+    DEBOUNCE_PRESS_INC,
+    DEBOUNCE_PRESS_DEC,
+    DEBOUNCE_PRESS_SHOW,
+    SLEEP_TIMEOUT_INC,
+    SLEEP_TIMEOUT_DEC,
+    SLEEP_TIMEOUT_SHOW,
+    MAC_GLOBE,
+    DEBOUNCE_RELEASE_INC,
+    DEBOUNCE_RELEASE_DEC,
+    DEBOUNCE_RELEASE_SHOW,
+    TOG_BAT_IND_NUM,
+    SOCDON,
+    SOCDOFF,
+    SOCDTOG,
+    FW_VERSION,
 };
 
 #define SYS_PRT G(S(KC_3))

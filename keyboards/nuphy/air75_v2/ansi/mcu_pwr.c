@@ -14,9 +14,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "user_kb.h"
+#include "config.h"
+#include "gpio.h"
+#include "kb_util.h"
 #include "mcu_stm32f0xx.h"
 #include "mcu_pwr.h"
+#include "rgb_matrix.h"
 
 // from @adi4086
 static const pin_t row_pins[MATRIX_ROWS] = MATRIX_ROW_PINS;
@@ -25,6 +28,7 @@ static const pin_t col_pins[MATRIX_COLS] = MATRIX_COL_PINS;
 //------------------------------------------------
 // 外部变量
 extern DEV_INFO_STRUCT dev_info;
+// extern bool            flush_side_leds;
 
 // static bool f_usb_deinit         = 0;
 static bool sleeping             = false;
@@ -159,6 +163,7 @@ void enter_deep_sleep(void) {
     gpio_set_pin_output(NRF_TEST_PIN);
     gpio_write_pin_high(NRF_TEST_PIN);
 
+    // TODO: JinCao has these as output/high, and ryodeushii as input/low
     gpio_set_pin_output(NRF_WAKEUP_PIN);
     gpio_write_pin_high(NRF_WAKEUP_PIN);
 
@@ -174,16 +179,27 @@ void enter_deep_sleep(void) {
  *       This is mostly Nuphy's unreleased logic with cleanup/refactoring by me.
  */
 void exit_deep_sleep(void) {
+    // JinCao version
     // 矩阵初始化
-    extern void matrix_init_pins(void);
-    matrix_init_pins();
+    /*extern void matrix_init_pins(void);
+    matrix_init_pins();*/
+
+    // ryodeushii version
+    extern void matrix_init_custom(void);
+    matrix_init_custom();
 
     // 恢复IO工作状态
+#if (WORK_MODE == THREE_MODE)
     gpio_set_pin_input_high(DEV_MODE_PIN); // PC0
+#endif
+    // keyboard OS switch pin
     gpio_set_pin_input_high(SYS_MODE_PIN); // PC1
 
+#if (WORK_MODE == THREE_MODE)
     /* Wake RF module? Not sure if this works... */
     gpio_set_pin_output(NRF_WAKEUP_PIN);
+    gpio_write_pin_high(NRF_WAKEUP_PIN);
+#endif
 
     // power on LEDs This is missing from Nuphy's logic.
     led_pwr_wake_handle();
@@ -195,7 +211,10 @@ void exit_deep_sleep(void) {
     if (tim6_enabled) TIM_Cmd(TIM6, ENABLE);
 
     // 发送一个握手唤醒RF
+	// Should re-init USB regardless probably if it was deinitialized.
+#if (WORK_MODE == THREE_MODE)
     uart_send_cmd(CMD_HAND, 0, 1); // 握手
+#endif
 
     // Should re-init USB regardless probably if it was deinitialized.
     // if (f_usb_deinit) {
@@ -204,6 +223,10 @@ void exit_deep_sleep(void) {
     //     restart_usb_driver(&USB_DRIVER);
     //     f_usb_deinit = 0;
     // }
+	if (dev_info.link_mode == LINK_USB) {
+        usb_lld_wakeup_host(&USB_DRIVER);
+        restart_usb_driver(&USB_DRIVER);
+    }
 
     // flag for RF wakeup workload.
     dev_info.rf_state = RF_WAKE;
@@ -214,13 +237,20 @@ void exit_deep_sleep(void) {
  * @note This is Nuphy's "open sourced" sleep logic. It's not deep sleep.
  */
 void enter_light_sleep(void) {
+#if (WORK_MODE == THREE_MODE)
+    dev_sts_sync();
+
     if (dev_info.rf_state == RF_CONNECT)
         uart_send_cmd(CMD_SET_CONFIG, 5, 5);
     else
         uart_send_cmd(CMD_SLEEP, 5, 5);
 
+#endif
     led_pwr_sleep_handle();
+
+#if (WORK_MODE == THREE_MODE)
     clear_report_buffer_and_queue();
+#endif
     sleeping = true;
 }
 
@@ -232,15 +262,19 @@ void exit_light_sleep(void) {
     sleeping = false;
     led_pwr_wake_handle();
 
+#if (WORK_MODE == THREE_MODE)
     uart_send_cmd(CMD_HAND, 0, 1);
+#endif
 
     if (dev_info.link_mode == LINK_USB) {
         usb_lld_wakeup_host(&USB_DRIVER);
         restart_usb_driver(&USB_DRIVER);
     }
 
+#if (WORK_MODE == THREE_MODE)
     // flag for RF wakeup workload.
     dev_info.rf_state = RF_WAKE;
+#endif
 }
 
 void led_pwr_sleep_handle(void) {
@@ -284,6 +318,7 @@ void pwr_rgb_led_off(void) {
 
 void pwr_rgb_led_on(void) {
     if (sleeping || rgb_led_on) return;
+    // if (rgb_led_on) return;
     // LED power supply on
     gpio_set_pin_output_push_pull(DC_BOOST_PIN);
     gpio_write_pin_high(DC_BOOST_PIN);
@@ -302,6 +337,7 @@ void pwr_side_led_off(void) {
 
 void pwr_side_led_on(void) {
     if (sleeping || side_led_on) return;
+    // if (side_led_on) return;
     gpio_set_pin_output_push_pull(DRIVER_SIDE_CS_PIN);
     gpio_write_pin_low(DRIVER_SIDE_CS_PIN);
     wait_us(200); // sleep a bit to ensure LEDs power properly?

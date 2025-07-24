@@ -15,11 +15,16 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "kb_util.h"
 #include "ansi.h"
 #include "usb_main.h"
 #include "mcu_pwr.h"
+#include "config.h"
+#include "eeconfig.h"
 #include "color.h"
+#include "host.h"
 
 kb_config_t     kb_config;
 DEV_INFO_STRUCT dev_info = {
@@ -36,13 +41,16 @@ bool f_rf_sw_press     = 0;
 bool f_dev_reset_press = 0;
 bool f_rgb_test_press  = 0;
 bool f_bat_num_show    = 0;
+bool f_debounce_press_show   = 0;
+bool f_debounce_release_show = 0;
+bool f_sleep_timeout_show    = 0;
 
 uint8_t        rf_blink_cnt          = 0;
 uint8_t        rf_sw_temp            = 0;
 uint8_t        host_mode             = 0;
 uint16_t       rf_linking_time       = 0;
 uint16_t       rf_link_show_time     = 0;
-uint16_t       no_act_time           = 0;
+uint32_t       no_act_time           = 0;
 uint16_t       dev_reset_press_delay = 0;
 uint16_t       rf_sw_press_delay     = 0;
 uint16_t       rgb_test_press_delay  = 0;
@@ -65,6 +73,8 @@ void gpio_init(void) {
     /* set side LED pin output low */
     gpio_set_pin_output_push_pull(DRIVER_SIDE_PIN);
     gpio_write_pin_low(DRIVER_SIDE_PIN);
+
+#if (WORK_MODE == THREE_MODE)
     /* config RF module pin */
     gpio_set_pin_output_push_pull(NRF_WAKEUP_PIN);
     gpio_write_pin_high(NRF_WAKEUP_PIN);
@@ -75,9 +85,24 @@ void gpio_init(void) {
     gpio_write_pin_low(NRF_RESET_PIN);
     wait_ms(50);
     gpio_write_pin_high(NRF_RESET_PIN);
-    /* config dial switch pin */
+
+    /* connection mode switch pin */
     gpio_set_pin_input_high(DEV_MODE_PIN);
+#endif
+    /* config keyboard OS switch pin */
     gpio_set_pin_input_high(SYS_MODE_PIN);
+
+    // TODO: From ryodeushii - but not convinced this is right
+    /*
+    // open power
+    setPinOutput(DC_BOOST_PIN);
+    writePinHigh(DC_BOOST_PIN);
+
+    setPinOutput(DRIVER_LED_CS_PIN);
+    writePinLow(DRIVER_LED_CS_PIN);
+
+    setPinOutput(DRIVER_SIDE_CS_PIN);
+    writePinLow(DRIVER_SIDE_CS_PIN);*/
 }
 
 /**
@@ -93,6 +118,7 @@ void long_press_key(void) {
 
     // Open a new RF device
     if (f_rf_sw_press) {
+#if (WORK_MODE == THREE_MODE)
         rf_sw_press_delay++;
         if (rf_sw_press_delay >= RF_LONG_PRESS_DELAY) {
             f_rf_sw_press = 0;
@@ -111,6 +137,7 @@ void long_press_key(void) {
                 }
             }
         }
+#endif
     } else {
         rf_sw_press_delay = 0;
     }
@@ -188,7 +215,9 @@ void break_all_key(void) {
     clear_weak_mods();
     clear_mods();
     clear_keyboard(); // this already sends the report.
+    // break nkro key
     wait_ms(10);
+    // break byte key
     rf_repeat_key_break();
 
     // break the other keyboard mode
@@ -248,12 +277,16 @@ void dial_sw_scan(void) {
     }
     dial_scan_timer = timer_read32();
 
+#if (WORK_MODE == THREE_MODE)
     gpio_set_pin_input_high(DEV_MODE_PIN);
+#endif
     gpio_set_pin_input_high(SYS_MODE_PIN);
 
+#if (WORK_MODE == THREE_MODE)
     if (gpio_read_pin(DEV_MODE_PIN)) {
         dial_scan |= 0X01;
     }
+#endif
     if (gpio_read_pin(SYS_MODE_PIN)) {
         dial_scan |= 0X02;
     }
@@ -273,6 +306,7 @@ void dial_sw_scan(void) {
         return;
     }
 
+#if (WORK_MODE == THREE_MODE)
     if (dial_scan & 0x01) {
         if (dev_info.link_mode != LINK_USB) {
             switch_dev_link(LINK_USB);
@@ -282,6 +316,7 @@ void dial_sw_scan(void) {
             switch_dev_link(dev_info.rf_channel);
         }
     }
+#endif
 
     if (dial_scan & 0x02) {
         if (dev_info.sys_sw_state != SYS_SW_MAC) {
@@ -305,9 +340,11 @@ void dial_sw_scan(void) {
         f_dial_sw_init_ok = 1;
         f_first           = false;
 
+#if (WORK_MODE == THREE_MODE)
         if (dev_info.link_mode != LINK_USB) {
             host_set_driver(&rf_host_driver);
         }
+#endif
     }
 }
 
@@ -321,18 +358,22 @@ void dial_sw_fast_scan(void) {
     uint8_t dial_check_sys = 0;
     uint8_t debounce       = 0;
 
+#if (WORK_MODE == THREE_MODE)
     gpio_set_pin_input_high(DEV_MODE_PIN);
+#endif
     gpio_set_pin_input_high(SYS_MODE_PIN);
 
     // Debounce to get a stable state
     for (debounce = 0; debounce < 10; debounce++) {
         dial_scan_dev = 0;
         dial_scan_sys = 0;
+#if (WORK_MODE == THREE_MODE)
         if (gpio_read_pin(DEV_MODE_PIN)) {
             dial_scan_dev = 0x01;
         } else {
             dial_scan_dev = 0;
         }
+#endif
         if (gpio_read_pin(SYS_MODE_PIN)) {
             dial_scan_sys = 0x01;
         } else {
@@ -346,6 +387,7 @@ void dial_sw_fast_scan(void) {
         wait_ms(1);
     }
 
+#if (WORK_MODE == THREE_MODE)
     // RF link mode
     if (dial_scan_dev) {
         if (dev_info.link_mode != LINK_USB) {
@@ -356,6 +398,7 @@ void dial_sw_fast_scan(void) {
             switch_dev_link(dev_info.rf_channel);
         }
     }
+#endif
 
     // Win or Mac
     if (dial_scan_sys) {
@@ -389,7 +432,7 @@ void timer_pro(void) {
     }
 
     // step 10ms
-    if (timer_elapsed32(interval_timer) < 10) {
+    if (timer_elapsed32(interval_timer) < TIMER_STEP) {
         return;
     } else {
         interval_timer = timer_read32();
@@ -399,13 +442,15 @@ void timer_pro(void) {
         rf_link_show_time++;
     }
 
-    if (no_act_time < 0xffff) {
+    if (no_act_time < 0xffffffff) {
         no_act_time++;
     }
 
+#if (WORK_MODE == THREE_MODE)
     if (rf_linking_time < 0xffff) {
         rf_linking_time++;
     }
+#endif
 
     if (rgb_led_last_act < 0xffff) {
         rgb_led_last_act++;
@@ -420,8 +465,8 @@ void timer_pro(void) {
  * @brief  load eeprom data.
  */
 void load_eeprom_data(void) {
-    eeconfig_read_kb_datablock(&kb_config, 0, EECONFIG_KB_DATA_SIZE);
-    if (kb_config.default_brightness_flag != 0xA5) {
+    load_config_from_eeprom();
+    if (kb_config.default_brightness_flag != 0x45) {
         kb_config_reset();
     }
 }
@@ -434,22 +479,21 @@ void kb_config_reset(void) {
     /* first power on, set rgb matrix brightness off */
     // rgb_matrix_sethsv(255, 255, 0);
 
+    // ryodeushii
+    rgb_matrix_enable();
+    rgb_matrix_mode(RGB_MATRIX_DEFAULT_MODE);
+    rgb_matrix_set_speed(255 - RGB_MATRIX_SPD_STEP * 2);
+    rgb_matrix_sethsv(RGB_DEFAULT_COLOR, 255, RGB_MATRIX_MAXIMUM_BRIGHTNESS - RGB_MATRIX_VAL_STEP * 2);
+
     // Original, which I prefer:
     /* upon first power on, set RGB matrix brightness to middle level */
-    rgb_matrix_sethsv(255, 255, RGB_MATRIX_MAXIMUM_BRIGHTNESS - RGB_MATRIX_VAL_STEP * 2);
+    //rgb_matrix_sethsv(255, 255, RGB_MATRIX_MAXIMUM_BRIGHTNESS - RGB_MATRIX_VAL_STEP * 2);
 
-    kb_config.default_brightness_flag = 0xA5;
-    // Numbers seem to come from original version of device_reset_init.
-    kb_config.side_mode               = 0; // SIDE_WAVE
-    // Exception is this one; Original sets it to 3, JinCao to 1.
-    // I like 2.
-    kb_config.side_light              = 2;
-    kb_config.side_speed              = 2;
-    kb_config.side_rgb                = 1;
-    kb_config.side_colour             = 0;
-    kb_config.sleep_mode              = SLEEP_MODE_DEEP;
-    kb_config.rf_link_timeout         = LINK_TIMEOUT_ALT;
-    eeconfig_update_kb_datablock(&kb_config, 0, EECONFIG_KB_DATA_SIZE);
+    kb_config_init();
+    // mark config as initiated
+    kb_config.default_brightness_flag = 0x45;
+
+    save_config_to_eeprom();
 }
 
 /**
@@ -462,6 +506,8 @@ void bat_pct_led_kb(void) {
         bat_percent = 100;
     }
 
+    // JinCao version of logic
+    /*
     uint8_t led_idx_tens = bat_percent / 10;
     uint8_t led_idx_ones = bat_percent % 10;
 
@@ -475,7 +521,35 @@ void bat_pct_led_kb(void) {
         user_set_rgb_color(20, bat_pct_rgb.r, bat_pct_rgb.g, bat_pct_rgb.b);
     } else {
         user_set_rgb_color(30 - led_idx_ones, bat_pct_rgb.r, bat_pct_rgb.g, bat_pct_rgb.b);
+    }*/
+
+    uint8_t led_idx_tens = two_digit_decimals_led(bat_percent);
+    uint8_t led_idx_ones = two_digit_ones_led(bat_percent);
+
+    user_set_rgb_color(led_idx_tens, bat_pct_rgb.r, bat_pct_rgb.g, bat_pct_rgb.b);
+    user_set_rgb_color(led_idx_ones, bat_pct_rgb.r, bat_pct_rgb.g, bat_pct_rgb.b);
+}
+
+/**
+ * @brief toggle usb sleep on/off
+ */
+void toggle_usb_sleep(void) {
+    f_sleep_show          = 1;
+    kb_config.usb_sleep_toggle = !kb_config.usb_sleep_toggle;
+    save_config_to_eeprom();
+}
+
+/**
+ * @brief Toggle caps indication between side led / under key / off
+ */
+void toggle_caps_indication(void) {
+    if (kb_config.caps_indicator_type == CAPS_INDICATOR_OFF) {
+        kb_config.caps_indicator_type = CAPS_INDICATOR_SIDE; // set to initial state, when last state reached
+    } else {
+        kb_config.caps_indicator_type += 1;
     }
+
+    save_config_to_eeprom();
 }
 
 /**
@@ -571,7 +645,78 @@ void toggle_sleep_mode(void) {
         kb_config.sleep_mode = SLEEP_MODE_DEEP;
     }
     f_sleep_show = 1;
-    eeconfig_update_kb_datablock(&kb_config, 0, EECONFIG_KB_DATA_SIZE);
+    save_config_to_eeprom();
+}
+
+uint8_t get_led_index(uint8_t row, uint8_t col) {
+    return g_led_config.matrix_co[row][col];
+}
+
+/**
+ * @brief get LED if for first digit from double digit number. Esc = 0
+ */
+uint8_t two_digit_decimals_led(uint8_t value) {
+    if (value > 99) {
+        return get_led_index(0, 0);
+    }
+
+    uint8_t dec = value / 10;
+
+    uint8_t dec_led_idx = get_led_index(0, dec);
+
+    return dec_led_idx;
+}
+
+/**
+ * @brief get LED if for second digit from double digit number 0 = 0
+ */
+uint8_t two_digit_ones_led(uint8_t value) {
+    if (value > 99) {
+        return get_led_index(0, 0);
+    }
+
+    uint8_t ones = value % 10;
+    if (ones == 0) {
+        ones = 10;
+    }
+    uint8_t ones_led_idx = get_led_index(1, ones);
+
+    return ones_led_idx;
+}
+
+void adjust_debounce(uint8_t dir, DEBOUNCE_EVENT debounce_event) {
+#if DEBOUNCE > 0
+    if (dir) {
+        if (debounce_event == DEBOUNCE_PRESS && kb_config.debounce_press_ms < 99) {
+            kb_config.debounce_press_ms += DEBOUNCE_STEP;
+        } else if (debounce_event == DEBOUNCE_RELEASE && kb_config.debounce_release_ms < 99) {
+            kb_config.debounce_release_ms += DEBOUNCE_STEP;
+        }
+    } else if (!dir) {
+        if (debounce_event == DEBOUNCE_PRESS && kb_config.debounce_press_ms > 0) {
+            kb_config.debounce_press_ms -= DEBOUNCE_STEP;
+        } else if (debounce_event == DEBOUNCE_RELEASE && kb_config.debounce_release_ms > 0) {
+            kb_config.debounce_release_ms -= DEBOUNCE_STEP;
+        }
+    }
+    save_config_to_eeprom();
+#endif
+}
+
+void adjust_sleep_timeout(uint8_t dir) {
+    if (kb_config.sleep_mode) {
+        if (kb_config.sleep_timeout > 1 && !dir) {
+            kb_config.sleep_timeout -= SLEEP_TIMEOUT_STEP;
+        } else if (kb_config.sleep_timeout < 60 && dir) {
+            kb_config.sleep_timeout += SLEEP_TIMEOUT_STEP;
+        }
+        save_config_to_eeprom();
+    }
+}
+
+uint32_t get_sleep_timeout(void) {
+    if (kb_config.sleep_mode == SLEEP_MODE_OFF) return 0;
+    return kb_config.sleep_timeout * 60 * 1000 / TIMER_STEP;
 }
 
 void link_mode_set(void) {
@@ -579,4 +724,16 @@ void link_mode_set(void) {
     dev_info.rf_channel  = rf_sw_temp;
     dev_info.ble_channel = rf_sw_temp;
     uart_send_cmd(CMD_SET_LINK, 10, 20);
+}
+
+void debug_show_led(uint8_t show) {
+    if (show >= 100) {
+        show = 100;
+    }
+
+    uint8_t led_idx_tens = two_digit_decimals_led(show);
+    uint8_t led_idx_ones = two_digit_ones_led(show);
+
+    user_set_rgb_color(led_idx_tens, 0x80, 0x00, 0x00);
+    user_set_rgb_color(led_idx_ones, 0x80, 0x00, 0x00);
 }

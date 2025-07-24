@@ -23,9 +23,11 @@
     },
     "processor": "STM32F072",
     "bootloader": "stm32-dfu",
-    "debounce": 3,
+    // JinCao was 3, ryodeushii is 5
+    "debounce": 5,
     "build": {
-        "lto": true
+        "lto": true,
+        "debounce_type": "custom"
     },
     "matrix_pins": {
         "cols": ["A4", "A5", "A6", "B9", "B0", "B1", "B10", "B11", "B12", "B13", "B14", "B15", "A8", "A9", "A10", "A15", "B3"],
@@ -42,7 +44,8 @@
     "rgb_matrix": {
       "driver": "ws2812",
       "center_point": [80, 30],
-      "max_brightness": 128,
+      // Original/JinCao was 128, this is ryodeushii
+      "max_brightness": 190,
       "val_steps": 26,
       "speed_steps": 52,
       "sleep": true,

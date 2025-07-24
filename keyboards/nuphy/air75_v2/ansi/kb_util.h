@@ -17,7 +17,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
+#include <stdint.h>
 #include "quantum.h"
+#include "color.h"
+#include "quantum_keycodes.h"
 
 typedef enum {
     RX_Idle,
@@ -40,6 +43,16 @@ typedef enum {
 } TYPE_RX_STATE;
 
 // clang-format off
+
+typedef enum {
+    CAPS_INDICATOR_SIDE = 0,
+    CAPS_INDICATOR_UNDER_KEY,
+    CAPS_INDICATOR_BOTH,
+    CAPS_INDICATOR_OFF,
+} CAPS_LOCK_INDICATION;
+
+typedef enum { DEBOUNCE_PRESS = 0, DEBOUNCE_RELEASE } DEBOUNCE_EVENT;
+
 #define RF_IDLE 0
 #define RF_PAIRING 1
 #define RF_LINKING 2
@@ -102,6 +115,7 @@ typedef enum {
 #define LINK_TIMEOUT (100 * 120)
 #define LINK_TIMEOUT_ALT (100 * 5)
 #define SLEEP_TIME_DELAY (100 * 360)
+#define TIMER_STEP 10
 #define POWER_DOWN_DELAY (24)
 
 #define RF_LONG_PRESS_DELAY 30
@@ -140,15 +154,36 @@ typedef struct {
     // JinCao renamed this to init_flag, but still only used for default_brightness
     // Keeping original name for now.
     uint8_t  default_brightness_flag;
+    // (top) side light config
     uint8_t  side_mode;
     uint8_t  side_light;
     uint8_t  side_speed;
     uint8_t  side_rgb;
     uint8_t  side_colour;
-    uint8_t  sleep_mode;
+    uint8_t  sleep_mode : 2;
     uint16_t rf_link_timeout;
     uint8_t  retain1;
     uint8_t  retain2;
+    // ryodeushii additions
+    uint8_t usb_sleep_toggle : 1;
+    uint8_t debounce_press_ms;
+    uint8_t debounce_release_ms;
+    uint8_t sleep_timeout;
+    uint8_t caps_indicator_type;
+#ifdef SIDE_SEPARATE
+    // right side light config
+    uint8_t right_side_mode;
+    uint8_t right_side_light;
+    uint8_t right_side_speed;
+    uint8_t right_side_rgb;
+    uint8_t right_side_colour;
+#endif
+    uint8_t battery_indicator_brightness;
+    // custom keys highlight
+    uint8_t toggle_custom_keys_highlight : 1;
+    uint8_t detect_numlock_state : 1;
+    uint8_t battery_indicator_numeric : 1;
+    uint8_t show_socd_indicator : 1;
 } kb_config_t;
 
 // Globals
@@ -166,13 +201,14 @@ extern bool               f_dev_reset_press;
 extern bool               f_bat_num_show;
 extern bool               f_rgb_test_press;
 extern bool               f_rgb_led_press;
-extern uint16_t           no_act_time;
+extern uint32_t           no_act_time;
 extern uint8_t            rf_sw_temp;
 extern uint16_t           rf_sw_press_delay;
 extern uint16_t           rf_linking_time;
 extern uint16_t           sleep_time_delay;
 extern bool               f_wakeup_prepare;
 extern bool               f_rf_new_adv_ok;
+extern bool               f_dial_sw_init_ok;
 
 void    dev_sts_sync(void);
 void    rf_uart_init(void);
@@ -199,8 +235,67 @@ void    dial_sw_fast_scan(void);
 void    timer_pro(void);
 void    load_eeprom_data(void);
 void    kb_config_reset(void);
+void    kb_config_init(void);
 void    user_set_rgb_color(int index, uint8_t red, uint8_t green, uint8_t blue);
+uint8_t get_led_index(uint8_t row, uint8_t col);
+
+void    sleep_handle(void);
 void    led_power_handle(void);
 void    toggle_sleep_mode(void);
+void    toggle_caps_indication(void);
+void    toggle_usb_sleep(void);
 void    link_mode_set(void);
+
 uint8_t uart_send_cmd(uint8_t cmd, uint8_t ack_cnt, uint8_t delayms);
+
+uint8_t  two_digit_decimals_led(uint8_t value);
+uint8_t  two_digit_ones_led(uint8_t value);
+void     adjust_debounce(uint8_t dir, DEBOUNCE_EVENT debounce_event);
+uint32_t get_sleep_timeout(void);
+void     adjust_sleep_timeout(uint8_t dir);
+
+#ifdef SIDE_SEPARATE
+void    right_side_speed_control(uint8_t dir);
+void    right_side_light_control(uint8_t dir);
+void    right_side_colour_control(uint8_t dir);
+void    right_side_mode_control(uint8_t dir);
+void    right_side_led_loop(void);
+#endif
+
+
+#ifdef VIA_ENABLE
+enum via_indicator_value {
+    id_usb_sleep_toggle    = 0,
+    id_debounce_press      = 1,
+    id_debounce_release    = 2,
+    id_sleep_timeout       = 3,
+    id_caps_indicator_type = 4,
+    id_sleep_mode          = 5,
+    // side light controls
+    id_side_light_mode       = 10,
+    id_side_light_speed      = 11,
+    id_side_light_color      = 12,
+    id_side_light_brightness = 13,
+    // right side light controls
+    id_right_side_light_mode        = 20,
+    id_right_side_light_speed       = 21,
+    id_right_side_light_color       = 22,
+    id_right_side_light_brightness  = 23,
+    id_battery_indicator_brightness = 31,
+    id_toggle_custom_keys_highlight = 32,
+    id_toggle_detect_numlock_state  = 33,
+    id_battery_indicator_numeric    = 34,
+    id_toggle_socd_indicator        = 35,
+};
+
+// function declaration
+void indicator_config_set_value(uint8_t *data);
+void indicator_config_get_value(uint8_t *data);
+void _set_color(HSV *color, uint8_t *data);
+void _get_color(HSV *color, uint8_t *data);
+#endif
+
+void save_config_to_eeprom(void);
+void load_config_from_eeprom(void);
+
+void debug_show_led(uint8_t show);
