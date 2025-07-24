@@ -17,12 +17,25 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
+#define SYS_SIDE SIDE_RIGHT
+#define BAT_SIDE SIDE_RIGHT
+#define RF_SIDE SIDE_LEFT
+
+#define USB_MODE 0
+#define THREE_MODE 1
+#define WORK_MODE THREE_MODE
+
+#define DYNAMIC_KEYMAP_MACRO_DELAY 8
+#define TAPPING_TERM 200
+
 #define DEV_MODE_PIN C0
 #define SYS_MODE_PIN C1
 #define DC_BOOST_PIN C2
 #define NRF_RESET_PIN B4
 #define NRF_TEST_PIN B5
 #define NRF_WAKEUP_PIN B8
+
+#define DRIVER_RGB_DI_PIN A7
 #define DRIVER_LED_CS_PIN C6
 #define DRIVER_SIDE_PIN C8
 #define DRIVER_SIDE_CS_PIN C9
@@ -33,7 +46,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define UART_RX_PIN B7
 #define UART_RX_PAL_MODE 0
 
-#define EECONFIG_KB_DATA_SIZE 10 // match used byte size of kb_config_t + 1 (seems to need extra byte)
+// JinCao
+// #define EECONFIG_KB_DATA_SIZE 10 // match used byte size of kb_config_t + 1 (seems to need extra byte)
+
+// ryodeushii
+#ifdef VIA_ENABLE
+#    define VIA_EEPROM_CUSTOM_CONFIG_SIZE 22 // sizeof via_config
+#elif defined(SIDE_SEPARATE)
+#    define EECONFIG_KB_DATA_SIZE 20
+#else
+#    define EECONFIG_KB_DATA_SIZE 15
+#endif
 
 #define WS2812_TIMING 850
 #define WS2812_T1H 700
@@ -44,4 +67,70 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define WS2812_PWM_PAL_MODE 1
 #define WS2812_DMA_STREAM STM32_DMA1_STREAM3
 #define WS2812_DMA_CHANNEL 3
+// ryodeushii turned this to     800000
 #define WS2812_PWM_TARGET_PERIOD 200000
+
+#ifdef RGB_MATRIX_LED_COUNT
+#    undef RGB_MATRIX_LED_COUNT
+#endif
+#define RGB_MATRIX_LED_COUNT 84 // sides 6 + 6, not included here
+
+// #define DEBUG_MATRIX_SCAN_RATE
+
+// NOTE: uncomment if you want to have random colors in Reactive RGB effects
+// #define RGB_MATRIX_SOLID_REACTIVE_GRADIENT_MODE
+
+#define DEBOUNCE_STEP 1
+
+// USB sleep workaround :D
+#ifdef USB_SUSPEND_WAKEUP_DELAY
+#    undef USB_SUSPEND_WAKEUP_DELAY
+#endif
+#define USB_SUSPEND_WAKEUP_DELAY 50
+
+// sleep timeout change step (minutes)
+#define SLEEP_TIMEOUT_STEP 1
+// #define LED_HITS_TO_REMEMBER 16
+#define WS2812_SPI_USE_CIRCULAR_BUFFER
+
+// debounce override - for clangd compliance - info_json.h - doesn't work most of the times
+// See keyboard.json for debounce.
+#define RELEASE_DEBOUNCE (DEBOUNCE)
+// use dedicated timer for wait_us interrupts instead on ChibiOS defaulting to minimum 100us even if you sleep for 10us
+#define WAIT_US_TIMER GPTD14
+
+/*
+ * DEFAULT VALUES FOR INITIAL CONFIG to allow override in user keymap
+ */
+#define RGB_MATRIX_DEFAULT_MODE RGB_MATRIX_CYCLE_LEFT_RIGHT
+#define RGB_DEFAULT_COLOR 168
+
+#define DEFAULT_SLEEP_MODE SLEEP_MODE_DEEP
+#define DEFAULT_USB_SLEEP_TOGGLE false
+#define DEFAULT_SLEEP_TIMEOUT 5
+#define DEFAULT_CAPS_INDICATOR_TYPE CAPS_INDICATOR_SIDE
+#define DEFAULT_BATTERY_INDICATOR_BRIGHTNESS 100
+#define DEFAULT_LIGHT_CUSTOM_KEYS 0
+// Numbers seem to come from original version of device_reset_init.
+#define DEFAULT_SIDE_MODE 0
+// Exception is this one; Original sets it to 3, JinCao to 1.
+// I like 2.
+#define DEFAULT_SIDE_LIGHT 2
+//#define DEFAULT_SIDE_LIGHT 3
+#define DEFAULT_SIDE_SPEED 2
+#define DEFAULT_SIDE_RGB 1
+#define DEFAULT_SIDE_COLOR 0
+#define DEFAULT_RIGHT_SIDE_MODE 0
+#define DEFAULT_RIGHT_SIDE_LIGHT 2
+//#define DEFAULT_RIGHT_SIDE_BRIGHTNESS 3
+#define DEFAULT_RIGHT_SIDE_SPEED 2
+#define DEFAULT_RIGHT_SIDE_RGB 1
+#define DEFAULT_RIGHT_SIDE_COLOR 0
+#define DEFAULT_DETECT_NUMLOCK 0
+#define DEFAULT_BATTERY_INDICATOR_NUMERIC 0
+#define DEFAULT_SHOW_SOCD_INDICATOR 0
+#define DEFAULT_RF_LINK_TIMEOUT LINK_TIMEOUT_ALT
+/*
+ * END OF DEFAULT VALUES
+ */
+#define CFW_VERSION "put_version_here"

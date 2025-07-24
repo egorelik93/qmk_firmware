@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdint.h>
 #include "kb_util.h"
 #include "uart.h" // qmk uart.h
 #include "ansi.h"
@@ -56,7 +57,7 @@ extern uint8_t         host_mode;
 extern uint8_t         rf_blink_cnt;
 extern uint16_t        rf_link_show_time;
 extern uint16_t        rf_linking_time;
-extern uint16_t        no_act_time;
+extern uint32_t        no_act_time;
 extern bool            f_send_channel;
 extern bool            f_dial_sw_init_ok;
 
@@ -90,6 +91,7 @@ static uint8_t get_repeat_interval(void) {
 void clear_report_buffer(void) {
     if (report_buff_a.cmd) memset(&report_buff_a.cmd, 0, sizeof(report_buffer_t));
     if (report_buff_b.cmd) memset(&report_buff_b.cmd, 0, sizeof(report_buffer_t));
+    rf_queue.clear();
 }
 
 /**
@@ -108,6 +110,7 @@ void uart_send_repeat_from_queue(void) {
     static uint32_t        repeat_timer  = 0;
     static report_buffer_t report_buff   = {0};
     static bool            do_repeat     = true;
+    // ryodeushii set this to > 25
     if (timer_elapsed32(dequeue_timer) >= 30 && !rf_queue.is_empty()) {
         rf_queue.dequeue(&report_buff);
         dequeue_timer = timer_read32();
@@ -121,9 +124,11 @@ void uart_send_repeat_from_queue(void) {
         if (do_repeat) report_buff_a = report_buff;
     }
 
-    if (report_buff.repeat == 0 || (do_repeat && timer_elapsed32(repeat_timer) >= 3)) {
+    // JinCao has >= 3, ryodeushii > 3
+    if (report_buff.repeat == 0 || (do_repeat && timer_elapsed32(repeat_timer) > 3)) {
         uart_send_report(report_buff.cmd, report_buff.buffer, report_buff.length);
-        report_buff.repeat++;
+        // Commented out and comment by ryodeushii
+        // report_buff.repeat++; // FIXME: probably cause of non sleeping on conn timeout
         repeat_timer = timer_read32();
     }
 }
@@ -231,7 +236,7 @@ void rf_protocol_receive(void) {
                         dev_info.rf_led = Usart_Mgr.RXDBuf[6];
                     }
 
-                    dev_info.rf_charge = Usart_Mgr.RXDBuf[7];
+                    if ((Usart_Mgr.RXDBuf[7] & 0xfc) == 0) dev_info.rf_charge = Usart_Mgr.RXDBuf[7];
                     uint8_t bat_pct    = Usart_Mgr.RXDBuf[8];
                     if (dev_info.rf_charge & 0x01) bat_pct = 100;
                     if (bat_pct > 0 && bat_pct <= 100) {
@@ -270,6 +275,9 @@ void rf_protocol_receive(void) {
                 f_rf_read_data_ok = 1;
                 break;
             }
+            default:
+                Usart_Mgr.RXDState = RX_CMD_ERR;
+                return;
         }
 
         Usart_Mgr.RXDLen      = 0;
@@ -285,6 +293,7 @@ void rf_protocol_receive(void) {
  * @param  delayms: delay before sending.
  */
 uint8_t uart_send_cmd(uint8_t cmd, uint8_t wait_ack, uint8_t delayms) {
+    uint8_t i;
     wait_ms(delayms);
 
     memset(&Usart_Mgr.TXDBuf[0], 0, UART_MAX_LEN);
@@ -294,6 +303,18 @@ uint8_t uart_send_cmd(uint8_t cmd, uint8_t wait_ack, uint8_t delayms) {
     Usart_Mgr.TXDBuf[2] = 0x00;
 
     switch (cmd) {
+        case CMD_POWER_UP: {
+            Usart_Mgr.TXDBuf[3] = 1;
+            Usart_Mgr.TXDBuf[4] = 0;
+            Usart_Mgr.TXDBuf[5] = 0;
+            break;
+        }
+        case CMD_SNIF: {
+            Usart_Mgr.TXDBuf[3] = 1;
+            Usart_Mgr.TXDBuf[4] = 0;
+            Usart_Mgr.TXDBuf[5] = 0;
+            break;
+        }
         case CMD_SLEEP: {
             Usart_Mgr.TXDBuf[3] = 1;
             Usart_Mgr.TXDBuf[4] = 0;
@@ -410,6 +431,24 @@ uint8_t uart_send_cmd(uint8_t cmd, uint8_t wait_ack, uint8_t delayms) {
             Usart_Mgr.TXDBuf[4] = 0x00;
             Usart_Mgr.TXDBuf[5] = FUNC_VALID_LEN;
             Usart_Mgr.TXDBuf[6] = FUNC_VALID_LEN;
+            break;
+        }
+
+        case CMD_WRITE_DATA: {
+            func_tab[4] = dev_info.link_mode;
+            func_tab[5] = dev_info.rf_channel;
+            func_tab[6] = dev_info.ble_channel;
+
+            Usart_Mgr.TXDBuf[3] = FUNC_VALID_LEN + 2;
+            Usart_Mgr.TXDBuf[4] = 0;
+            Usart_Mgr.TXDBuf[5] = FUNC_VALID_LEN;
+
+            for (i = 0; i < FUNC_VALID_LEN; i++) {
+                Usart_Mgr.TXDBuf[6 + i] = func_tab[i];
+            }
+            Usart_Mgr.TXDBuf[6 + i] = get_checksum(func_tab, FUNC_VALID_LEN);
+            Usart_Mgr.TXDBuf[6 + i] += 0;
+            Usart_Mgr.TXDBuf[6 + i] += FUNC_VALID_LEN;
             break;
         }
 
@@ -705,6 +744,5 @@ void rf_device_init(void) {
     }
 
     uart_send_cmd(CMD_SET_NAME, 10, 20);
-
     uart_send_cmd(CMD_SET_24G_NAME, 10, 20);
 }

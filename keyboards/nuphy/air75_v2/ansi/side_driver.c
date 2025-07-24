@@ -1,3 +1,5 @@
+// Copyright 2023 Persama (@Persama)
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 Copyright 2023 @ Nuphy <https://nuphy.com/>
 
@@ -97,7 +99,7 @@ void side_ws2812_setleds(rgb_led_t *ledarray, uint16_t leds) {
         side_sendByte(ledarray[i].b);
     }
 
-    wait_ns(WS2812_RES);
+ //   wait_ns(WS2812_RES);
 
     chSysUnlock();
 }

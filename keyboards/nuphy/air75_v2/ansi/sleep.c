@@ -26,7 +26,7 @@ extern kb_config_t     kb_config;
 extern DEV_INFO_STRUCT dev_info;
 extern uint16_t        rf_linking_time;
 extern uint16_t        rf_link_timeout;
-extern uint16_t        no_act_time;
+extern uint32_t        no_act_time;
 extern bool            f_goto_sleep;
 extern bool            f_wakeup_prepare;
 extern uint16_t        sleep_time_delay;
@@ -59,7 +59,9 @@ void deep_sleep_handle(void) {
 void sleep_handle(void) {
     static uint32_t delay_step_timer     = 0;
     static uint8_t  usb_suspend_debounce = 0;
+#if (WORK_MODE == THREE_MODE)
     static uint32_t rf_disconnect_time   = 0;
+#endif
 
     /* 50ms interval */
     if (timer_elapsed32(delay_step_timer) < 50) {
@@ -67,33 +69,47 @@ void sleep_handle(void) {
     }
     delay_step_timer = timer_read32();
 
+    if (kb_config.sleep_mode == SLEEP_MODE_OFF) return;
+    uint32_t sleep_time_delay = get_sleep_timeout();
     // sleep process;
     if (f_goto_sleep) {
         // reset all counters
         f_goto_sleep         = 0;
-        rf_disconnect_time   = 0;
-        rf_linking_time      = 0;
         usb_suspend_debounce = 0;
-
-        // don't deep sleep if charging on wireless, charging interrupts and wakes the MCU
-        if (kb_config.sleep_mode != SLEEP_MODE_OFF && dev_info.link_mode < LINK_USB && dev_info.rf_charge & 0x01) {
-            enter_light_sleep();
-            // Don't deep sleep if in USB mode. Board may have issues waking as reported by others. I assume it's being
+#if (WORK_MODE == THREE_MODE)
+        rf_linking_time      = 0;
+        rf_disconnect_time = 0;
+#endif
+        // ryodeushii: if LINK_USB -> light sleep
+        if (dev_info.link_mode == LINK_USB) {
+			// JinCao: Don't deep sleep if in USB mode. Board may have issues waking as reported by others. I assume it's being
             // powered if USB port is on, or otherwise it's disconnected at the hardware level if USB port is off..
-        } else if (kb_config.sleep_mode != SLEEP_MODE_OFF && dev_info.link_mode == LINK_USB) {
+            if (kb_config.usb_sleep_toggle || USB_DRIVER.state == USB_SUSPENDED) {
+                break_all_key();
+                enter_light_sleep();
+            }
+        // if not USB
+        // JinCao: don't deep sleep if charging on wireless, charging interrupts and wakes the MCU
+        // ryodeushii: but charging -> light sleep
+        } else if (kb_config.sleep_mode != SLEEP_MODE_OFF && ((dev_info.rf_charge & 0x01) != 0 || dev_info.rf_charge == 0x03)) {
+            break_all_key();
             enter_light_sleep();
-        } else if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
-            deep_sleep_handle();
+            // otherwise -> deep sleep
+		} else if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
+			break_all_key(); // reset keys before sleeping for new QMK lifecycle to handle on wake.
+			deep_sleep_handle();
             return; // don't need to do anything else
-        } else if (kb_config.sleep_mode == SLEEP_MODE_LIGHT) {
-            enter_light_sleep();
-        }
-        f_wakeup_prepare = 1; // only if light sleep.
-    }
+		} else if (kb_config.sleep_mode == SLEEP_MODE_LIGHT) {
+			break_all_key();
+			enter_light_sleep();
+		}
 
-    // Original
+		f_wakeup_prepare = 1; // only if light sleep.
+	}
+
+    // TODO: Original
     // wakeup check
-    if (f_wakeup_prepare && (no_act_time < 10)) {
+    /*if (f_wakeup_prepare && (no_act_time < 10)) {
         f_wakeup_prepare = 0;
 
         pwr_rgb_led_on();
@@ -116,9 +132,9 @@ void sleep_handle(void) {
                 break_all_key();
             }
         }
-    }
+    }*/
 
-
+    // NOTE: wakeup logic moved to early keypress detection in ansi.c -> pre_process_record_kb
     // sleep check, won't reach here on deep sleep.
     if (f_goto_sleep || f_wakeup_prepare) {
         return;
@@ -133,8 +149,15 @@ void sleep_handle(void) {
             }
         } else {
             usb_suspend_debounce = 0;
+            if (kb_config.usb_sleep_toggle && no_act_time >= sleep_time_delay) {
+                f_goto_sleep = 1;
+            } else {
+                f_goto_sleep = 0;
+            }
         }
-    } else if (no_act_time >= sleep_time_delay) {
+    }
+#if (WORK_MODE == THREE_MODE)
+    else if (no_act_time >= sleep_time_delay) {
         f_goto_sleep = 1;
     } else if (rf_linking_time >= kb_config.rf_link_timeout) {
         f_goto_sleep = 1;
@@ -146,4 +169,5 @@ void sleep_handle(void) {
     } else if (dev_info.rf_state == RF_CONNECT) {
         rf_disconnect_time = 0;
     }
+#endif
 }

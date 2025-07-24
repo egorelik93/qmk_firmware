@@ -433,6 +433,12 @@ ifeq ($(strip $(LED_MATRIX_ENABLE)), yes)
         SRC += snled27351-mono.c
     endif
 
+    ifeq ($(strip $(RGB_MATRIX_DRIVER)), is31fl3763)
+        I2C_DRIVER_REQUIRED = yes
+        COMMON_VPATH += $(DRIVER_PATH)/led/issi
+        SRC += is31fl3763.c
+    endif
+
     ifeq ($(strip $(LED_MATRIX_CUSTOM_KB)), yes)
         OPT_DEFS += -DLED_MATRIX_CUSTOM_KB
     endif
