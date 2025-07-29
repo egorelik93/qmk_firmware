@@ -19,3 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define TAPPING_TERM_PER_KEY
 #define FLOW_TAP_TERM 300
+
+#undef DEFAULT_BATTERY_INDICATOR_NUMERIC
+#define DEFAULT_BATTERY_INDICATOR_NUMERIC 1

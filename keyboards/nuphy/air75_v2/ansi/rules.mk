@@ -1,7 +1,5 @@
 SRC += mcu_pwr.c side.c side_table.c rf.c sleep.c rf_driver.c kb_util.c side_driver.c rf_queue.c
 
-RIGHT_SIDE_ENABLE ?= yes
-
 ifeq ($(RIGHT_SIDE_ENABLE), yes)
     SRC += side_right.c
 	OPT_DEFS += -DSIDE_SEPARATE
