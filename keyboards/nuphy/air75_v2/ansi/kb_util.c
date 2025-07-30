@@ -716,7 +716,14 @@ void adjust_sleep_timeout(uint8_t dir) {
 
 uint32_t get_sleep_timeout(void) {
     if (kb_config.sleep_mode == SLEEP_MODE_OFF) return 0;
-    return kb_config.sleep_timeout * 60 * 1000 / TIMER_STEP;
+
+    uint8_t sleep_timeout = kb_config.sleep_timeout;
+    // Shouldn't happen, but an incorrect eeprom size can wipe the setting.
+    if (sleep_timeout == 0) {
+        sleep_timeout = DEFAULT_SLEEP_TIMEOUT;
+    }
+
+    return sleep_timeout * 60 * 1000 / TIMER_STEP;
 }
 
 void link_mode_set(void) {
