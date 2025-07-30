@@ -370,8 +370,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
         case KB_SLP:
             if (record->event.pressed) {
-                uint16_t mask = (100 * 30) ^ SLEEP_TIME_DELAY; // 30s or default
-                sleep_time_delay ^= mask;                      // XOR swap
+                f_sleep_now = true;
             }
             return false;
 

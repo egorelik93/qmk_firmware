@@ -205,7 +205,7 @@ extern uint32_t           no_act_time;
 extern uint8_t            rf_sw_temp;
 extern uint16_t           rf_sw_press_delay;
 extern uint16_t           rf_linking_time;
-extern uint16_t           sleep_time_delay;
+extern bool               f_sleep_now;
 extern bool               f_wakeup_prepare;
 extern bool               f_rf_new_adv_ok;
 extern bool               f_dial_sw_init_ok;

@@ -29,7 +29,6 @@ extern uint16_t        rf_link_timeout;
 extern uint32_t        no_act_time;
 extern bool            f_goto_sleep;
 extern bool            f_wakeup_prepare;
-extern uint16_t        sleep_time_delay;
 
 void side_rgb_set_color_all(uint8_t r, uint8_t g, uint8_t b);
 void side_rgb_refresh(void);
@@ -75,6 +74,7 @@ void sleep_handle(void) {
     if (f_goto_sleep) {
         // reset all counters
         f_goto_sleep         = 0;
+        f_sleep_now          = 0;
         usb_suspend_debounce = 0;
 #if (WORK_MODE == THREE_MODE)
         rf_linking_time      = 0;

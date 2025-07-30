@@ -44,6 +44,7 @@ bool f_bat_num_show    = 0;
 bool f_debounce_press_show   = 0;
 bool f_debounce_release_show = 0;
 bool f_sleep_timeout_show    = 0;
+bool f_sleep_now       = 0;
 
 uint8_t        rf_blink_cnt          = 0;
 uint8_t        rf_sw_temp            = 0;
@@ -56,7 +57,6 @@ uint16_t       rf_sw_press_delay     = 0;
 uint16_t       rgb_test_press_delay  = 0;
 uint16_t       rgb_led_last_act      = 0;
 uint16_t       side_led_last_act     = 0;
-uint16_t       sleep_time_delay      = SLEEP_TIME_DELAY;
 host_driver_t *m_host_driver         = 0;
 rgb_t          bat_pct_rgb           = {.r = 0x80, .g = 0x80, .b = 0x00};
 
@@ -716,6 +716,14 @@ void adjust_sleep_timeout(uint8_t dir) {
 
 uint32_t get_sleep_timeout(void) {
     if (kb_config.sleep_mode == SLEEP_MODE_OFF) return 0;
+
+    if (f_sleep_now) {
+        if (dev_info.link_mode == LINK_USB) {
+            extern bool f_goto_sleep;
+            f_goto_sleep = true;
+        }
+        return 2 * 100; // 2 s
+    }
 
     uint8_t sleep_timeout = kb_config.sleep_timeout;
     // Shouldn't happen, but an incorrect eeprom size can wipe the setting.
