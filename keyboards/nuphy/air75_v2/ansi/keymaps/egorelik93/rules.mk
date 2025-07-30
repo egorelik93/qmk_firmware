@@ -1,1 +1,3 @@
 RIGHT_SIDE_ENABLE = no
+
+CONSOLE_ENABLE = yes
