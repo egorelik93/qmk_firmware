@@ -51,11 +51,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // ryodeushii
 #ifdef VIA_ENABLE
-#    define VIA_EEPROM_CUSTOM_CONFIG_SIZE 22 // sizeof via_config
+#    define VIA_EEPROM_CUSTOM_CONFIG_SIZE 27 // sizeof via_config
 #elif defined(SIDE_SEPARATE)
-#    define EECONFIG_KB_DATA_SIZE 20
+#    define EECONFIG_KB_DATA_SIZE 25
 #else
-#    define EECONFIG_KB_DATA_SIZE 15
+#    define EECONFIG_KB_DATA_SIZE 20
 #endif
 
 #define WS2812_TIMING 850
