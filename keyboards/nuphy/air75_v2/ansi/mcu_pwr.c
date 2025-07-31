@@ -223,9 +223,20 @@ void exit_deep_sleep(void) {
     //     restart_usb_driver(&USB_DRIVER);
     //     f_usb_deinit = 0;
     // }
-	if (dev_info.link_mode == LINK_USB) {
-        usb_lld_wakeup_host(&USB_DRIVER);
-        restart_usb_driver(&USB_DRIVER);
+    if (dev_info.link_mode == LINK_USB) {
+#define USB_GETSTATUS_REMOTE_WAKEUP_ENABLED (2U)
+        if ((USB_DRIVER.status & USB_GETSTATUS_REMOTE_WAKEUP_ENABLED) ) {
+            usb_lld_wakeup_host(&USB_DRIVER);
+            wait_ms(50);
+            uint8_t timeout = 10;
+            while ((USB_DRIVER.state == USB_SUSPENDED) && (timeout--)) {
+                usbWakeupHost(&USB_DRIVER);
+                restart_usb_driver(&USB_DRIVER);
+                wait_ms(50);
+            }
+            extern void break_all_key(void);
+            break_all_key();
+        }
     }
 
     // flag for RF wakeup workload.
@@ -267,8 +278,19 @@ void exit_light_sleep(void) {
 #endif
 
     if (dev_info.link_mode == LINK_USB) {
-        usb_lld_wakeup_host(&USB_DRIVER);
-        restart_usb_driver(&USB_DRIVER);
+#define USB_GETSTATUS_REMOTE_WAKEUP_ENABLED (2U)
+        if ((USB_DRIVER.status & USB_GETSTATUS_REMOTE_WAKEUP_ENABLED) ) {
+            usb_lld_wakeup_host(&USB_DRIVER);
+            wait_ms(50);
+            uint8_t timeout = 10;
+            while ((USB_DRIVER.state == USB_SUSPENDED) && (timeout--)) {
+                usbWakeupHost(&USB_DRIVER);
+                restart_usb_driver(&USB_DRIVER);
+                wait_ms(50);
+            }
+            extern void break_all_key(void);
+            break_all_key();
+        }
     }
 
 #if (WORK_MODE == THREE_MODE)
