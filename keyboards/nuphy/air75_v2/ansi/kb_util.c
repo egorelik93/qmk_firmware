@@ -717,14 +717,6 @@ void adjust_sleep_timeout(uint8_t dir) {
 uint32_t get_sleep_timeout(void) {
     if (kb_config.sleep_mode == SLEEP_MODE_OFF) return 0;
 
-    if (f_sleep_now) {
-        if (dev_info.link_mode == LINK_USB) {
-            extern bool f_goto_sleep;
-            f_goto_sleep = true;
-        }
-        return 2 * 100; // 2 s
-    }
-
     uint8_t sleep_timeout = kb_config.sleep_timeout;
     // Shouldn't happen, but an incorrect eeprom size can wipe the setting.
     if (sleep_timeout == 0) {

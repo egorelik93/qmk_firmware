@@ -70,6 +70,7 @@ void sleep_handle(void) {
 
     if (kb_config.sleep_mode == SLEEP_MODE_OFF) return;
     uint32_t sleep_time_delay = get_sleep_timeout();
+
     // sleep process;
     if (f_goto_sleep) {
         // reset all counters
@@ -108,6 +109,7 @@ void sleep_handle(void) {
 	}
 
     // TODO: Original
+    //   Was moved to  pre_process_record_kb and exit_light_sleep
     // wakeup check
     /*if (f_wakeup_prepare && (no_act_time < 10)) {
         f_wakeup_prepare = 0;
@@ -140,6 +142,9 @@ void sleep_handle(void) {
         return;
     }
 
+    if (f_sleep_now) {
+        sleep_time_delay = 1 * 100; // 1 s
+    }
 
     if (dev_info.link_mode == LINK_USB) {
         if (USB_DRIVER.state == USB_SUSPENDED) {
@@ -149,7 +154,7 @@ void sleep_handle(void) {
             }
         } else {
             usb_suspend_debounce = 0;
-            if (kb_config.usb_sleep_toggle && no_act_time >= sleep_time_delay) {
+            if ((f_sleep_now || kb_config.usb_sleep_toggle) && no_act_time >= sleep_time_delay) {
                 f_goto_sleep = 1;
             } else {
                 f_goto_sleep = 0;
