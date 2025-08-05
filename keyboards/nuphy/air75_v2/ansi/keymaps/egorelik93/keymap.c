@@ -163,10 +163,15 @@ tap_dance_action_t tap_dance_actions[] = {
     [TD_LCTL] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_F13, KC_LCTL, &lctl_double_tap),
 };
 
+#define EVIL_TAPPING_TERM 500
+
 static bool o_prefix_active = false;
 static bool u_prefix_active = false;
 static bool y_prefix_active = false;
 static bool vi_command_sent = false;
+static uint16_t o_timer = 0;
+static uint16_t u_timer = 0;
+static uint16_t y_timer = 0;
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     bool any_vi_prefix_active = o_prefix_active || u_prefix_active || y_prefix_active;
@@ -176,29 +181,35 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (record->event.pressed && !any_vi_prefix_active) {
                 // While examples also check record->tap.interrupted,
                 // for letter keys I do not want to accidentally hold
-                if (!record->tap.count || record->tap.interrupted) {
+                if (!record->tap.count) {
                     o_prefix_active = true;
+                    o_timer = timer_read();
                     return false;
                 }
             } else {
+                o_timer = 0;
                 o_prefix_active = false;
             }
         case EVIL_U2D:
             if (record->event.pressed && !any_vi_prefix_active) {
-                if (!record->tap.count || record->tap.interrupted) {
+                if (!record->tap.count) {
                     u_prefix_active = true;
+                    u_timer = timer_read();
                     return false;
                 }
             } else {
+                u_timer = 0;
                 u_prefix_active = false;
             }
         case EVIL_Y:
             if (record->event.pressed && !any_vi_prefix_active) {
-                if (!record->tap.count || record->tap.interrupted) {
+                if (!record->tap.count) {
                     y_prefix_active = true;
+                    y_timer = timer_read();
                     return false;
                 }
             } else {
+                y_timer = 0;
                 y_prefix_active = false;
             }
         // This adds extra keys in my current usage, but leaving commented as an example.
@@ -215,13 +226,18 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 && record->event.pressed
                 && !vi_command_sent) {
 
-                tap_code(KC_F14);
+                if (timer_elapsed(o_timer) >= EVIL_TAPPING_TERM ||
+                    timer_elapsed(u_timer) >= EVIL_TAPPING_TERM ||
+                    timer_elapsed(y_timer) >= EVIL_TAPPING_TERM) {
 
-                if (u_prefix_active) {
-                    tap_code(KC_D);
-                }
-                if (y_prefix_active) {
-                    tap_code(KC_Y);
+                    tap_code(KC_F14);
+
+                    if (timer_elapsed(u_timer) >= EVIL_TAPPING_TERM) {
+                        tap_code(KC_D);
+                    }
+                    if (timer_elapsed(y_timer) >= EVIL_TAPPING_TERM) {
+                        tap_code(KC_Y);
+                    }
                 }
             }
     }
@@ -233,10 +249,6 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
         case CTL_T(KC_F13):
         case TD(TD_LCTL):
             return 200;
-        case O_2_VI:
-        case EVIL_Y:
-        case EVIL_U2D:
-            return 400;
         default:
             return TAPPING_TERM;
     }
