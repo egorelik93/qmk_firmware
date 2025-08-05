@@ -1,0 +1,83 @@
+// Copyright 2024  Evgeny Kapusta (@ryodeushii)
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+Copyright 2023 @ Nuphy <https://nuphy.com/>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+*/
+
+#include "ansi.h"
+#include "keycodes.h"
+#include QMK_KEYBOARD_H
+
+// clang-format off
+const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
+
+// JinCao version, + ryodeushii modification
+// Compare with ../default/keymap.c to get differences.
+
+// layer Mac
+[0] = LAYOUT_75_ansi(
+    KC_ESC,     KC_BRID,   KC_BRIU,     KC_MCTL,   MAC_SEARCH, MAC_VOICE,   MAC_DND,   KC_MPRV,    KC_MPLY,     KC_MNXT,   KC_MUTE,    KC_VOLD,    KC_VOLU,     MAC_PRTA,   KC_INS,     KC_DEL,
+    KC_GRV,     KC_1,      KC_2,        KC_3,      KC_4,       KC_5,        KC_6,      KC_7,       KC_8,        KC_9,      KC_0,       KC_MINS,    KC_EQL,                  KC_BSPC,    KC_PGUP,
+    KC_TAB,     KC_Q,      KC_W,        KC_E,      KC_R,       KC_T,        KC_Y,      KC_U,       KC_I,        KC_O,      KC_P,       KC_LBRC,    KC_RBRC,                 KC_BSLS,    KC_PGDN,
+    KC_CAPS,    KC_A,      KC_S,        KC_D,      KC_F,       KC_G,        KC_H,      KC_J,       KC_K,        KC_L,      KC_SCLN,    KC_QUOT,                             KC_ENT,     KC_HOME,
+    KC_LSFT,               KC_Z,        KC_X,      KC_C,       KC_V,        KC_B,      KC_N,       KC_M,        KC_COMM,   KC_DOT,     KC_SLSH,                 KC_RSFT,    KC_UP,      KC_END,
+    KC_LCTL,    KC_LALT,   KC_LGUI,                                         KC_SPC,                             KC_RGUI,   MO(1),      KC_RCTL,                 KC_LEFT,    KC_DOWN,    KC_RGHT),
+
+// layer Mac Fn
+[1] = LAYOUT_75_ansi(
+    _______,    KC_F1,      KC_F2,      KC_F3,     KC_F4,      KC_F5,       KC_F6,     KC_F7,      KC_F8,       KC_F9,     KC_F10,     KC_F11,     KC_F12,      SYS_PRT,    _______,    _______,
+    _______,    LNK_BLE1,   LNK_BLE2,   LNK_BLE3,  LNK_RF,     _______,     _______,   _______,    _______,     _______,   _______,    _______,    _______,                 _______,    _______,
+    _______,    _______,    _______,    _______,   _______,    _______,     DEBOUNCE_PRESS_DEC,   DEBOUNCE_PRESS_SHOW,    DEBOUNCE_PRESS_INC,     _______,   _______,    DEV_RESET,  _______,                 BAT_SHOW,   _______,
+    TOG_CAPS_IND,    SLEEP_TIMEOUT_DEC,    SLEEP_TIMEOUT_SHOW,    SLEEP_TIMEOUT_INC,   _______,    _______,     DEBOUNCE_RELEASE_DEC,   DEBOUNCE_RELEASE_SHOW,    DEBOUNCE_RELEASE_INC,     _______,   _______,    _______,                             _______,    _______,
+    _______,                _______,    _______,   _______,    _______,     BAT_NUM,   MO(5),      MO(4),       RGB_SPD,   RGB_SPI,    _______,                 _______,    _______,    _______,
+    _______,    _______,    _______,                                        _______,                            _______,   MO(1),      _______,                 RM_NEXT,    _______,    RM_HUEU),
+
+// layer win
+[2] = LAYOUT_75_ansi(
+    KC_ESC,     KC_F1,     KC_F2,       KC_F3,     KC_F4,      KC_F5,       KC_F6,     KC_F7,      KC_F8,       KC_F9,     KC_F10,     KC_F11,     KC_F12,      KC_PSCR,    KC_INS,     KC_DEL,
+    KC_GRV,     KC_1,      KC_2,        KC_3,      KC_4,       KC_5,        KC_6,      KC_7,       KC_8,        KC_9,      KC_0,       KC_MINS,    KC_EQL,                  KC_BSPC,    KC_PGUP,
+    KC_TAB,     KC_Q,      KC_W,        KC_E,      KC_R,       KC_T,        KC_Y,      KC_U,       KC_I,        KC_O,      KC_P,       KC_LBRC,    KC_RBRC,                 KC_BSLS,    KC_PGDN,
+    KC_CAPS,    KC_A,      KC_S,        KC_D,      KC_F,       KC_G,        KC_H,      KC_J,       KC_K,        KC_L,      KC_SCLN,    KC_QUOT,                             KC_ENT,     KC_HOME,
+    KC_LSFT,               KC_Z,        KC_X,      KC_C,       KC_V,        KC_B,      KC_N,       KC_M,        KC_COMM,   KC_DOT,     KC_SLSH,                 KC_RSFT,    KC_UP,      KC_END,
+    KC_LCTL,    KC_LGUI,   KC_LALT,                                         KC_SPC,                             KC_RALT,   MO(3),      KC_RCTL,                 KC_LEFT,    KC_DOWN,    KC_RGHT),
+
+// layer win Fn
+[3] = LAYOUT_75_ansi(
+    _______,    KC_BRID,    KC_BRIU,    KC_CALC,   SOCDOFF,    SOCDTOG,     _______,   KC_MPRV,    KC_MPLY,     KC_MNXT,   KC_MUTE,    KC_VOLD,    KC_VOLU,     _______,    _______,    _______,
+    _______,    LNK_BLE1,   LNK_BLE2,   LNK_BLE3,  LNK_RF,     _______,     _______,   _______,    _______,     _______,   _______,    _______,    _______,                 _______,    _______,
+    _______,    _______,    _______,    _______,   _______,    _______,     DEBOUNCE_PRESS_DEC,   DEBOUNCE_PRESS_SHOW,    DEBOUNCE_PRESS_INC,     _______,   _______,    DEV_RESET,  _______,                 BAT_SHOW,   _______,
+    TOG_CAPS_IND,    SLEEP_TIMEOUT_DEC,    SLEEP_TIMEOUT_SHOW,    SLEEP_TIMEOUT_INC,   _______,    _______,     DEBOUNCE_RELEASE_DEC,   DEBOUNCE_RELEASE_SHOW,    DEBOUNCE_RELEASE_INC,     _______,   _______,    _______,                             _______,    _______,
+    _______,                _______,    _______,   _______,    _______,     BAT_NUM,   MO(5),      MO(4),       RGB_SPD,   RGB_SPI,    _______,                 _______,    _______,    _______,
+    _______,    _______,    _______,                                        _______,                            _______,   MO(3),      _______,                 RM_NEXT,    _______,    RM_HUEU),
+
+// layer 4
+[4] = LAYOUT_75_ansi(
+    _______,    RM_VALD,    RM_VALU,    _______,   _______,    _______,     _______,   _______,    _______,     _______,   _______,    _______,     _______,    _______,    _______,    _______,
+    _______,    _______,    _______,    _______,   _______,    _______,     _______,   _______,    _______,     _______,   _______,    _______,     _______,                _______,    _______,
+    _______,    _______,    _______,    _______,   _______,    _______,     _______,   _______,    _______,     _______,   _______,    _______,     SLEEP_MODE,             TOG_USB_SLP,_______, 
+    _______,    _______,    KB_SLP,     DB_TOGG,   _______,    _______,     _______,   _______,    _______,     _______,   _______,    _______,                             _______,    _______,
+    _______,                LINK_TO,    _______,   RGB_TEST,   _______,     _______,   _______,    _______,     SIDE_SPD,  SIDE_SPI,   _______,                 _______,    SIDE_VAI,   _______,
+    _______,    _______,    _______,                                        _______,                            _______,   MO(4),      _______,                 SIDE_MOD,   SIDE_VAD,   SIDE_HUI),
+
+// layer 5
+[5] = LAYOUT_75_ansi(
+    _______,     _______,      _______,      _______,     _______,      _______,      _______,      _______,      _______,      _______,     _______,     _______,     _______,     _______,    _______,    _______,
+    _______,     _______,       _______,       _______,      _______,       _______,       _______,       _______,       _______,       _______,      _______,       _______,    _______,                 _______,    _______,
+    _______,     _______,       _______,       _______,      _______,       _______,       _______,       _______,       _______,       _______,      _______,       _______,    _______,                 _______,    _______,
+    _______,    _______,       _______,       _______,      _______,       _______,       _______,       _______,       _______,       _______,      _______,    _______,                              _______,    _______,
+    _______,                _______,       _______,       _______,      _______,       _______,       _______,    _______,     RIGHT_SIDE_SPD,    RIGHT_SIDE_SPI,    _______,    _______,                RIGHT_SIDE_VAI,   _______,
+    _______,    _______,    _______,                                        _______,                             _______,    MO(5),       _______,                RIGHT_SIDE_MOD,    RIGHT_SIDE_VAD,   RIGHT_SIDE_HUI),
+
+};
+// clang-format on
+

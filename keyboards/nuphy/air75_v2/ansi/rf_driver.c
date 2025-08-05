@@ -17,12 +17,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "host_driver.h"
 #include "host.h"
-#include "user_kb.h"
+#include "kb_util.h"
+#include "usb_device_state.h"
 #include "rf_queue.h"
 
 /* Variable declaration */
-extern report_buffer_t byte_report_buff;
-extern report_buffer_t bit_report_buff;
+extern report_buffer_t report_buff_a;
+extern report_buffer_t report_buff_b;
 extern rf_queue_t      rf_queue;
 
 /* Host driver */
@@ -45,6 +46,7 @@ void uart_send_report(uint8_t report_type, uint8_t *report_buf, uint8_t report_s
 static void send_or_queue(report_buffer_t *report) {
     if (dev_info.rf_state == RF_CONNECT && rf_queue.is_empty() && dequeue_delay == 0) {
         uart_send_report(report->cmd, report->buffer, report->length);
+        report->repeat++;
     } else {
         rf_queue.enqueue(report);
     }
@@ -116,13 +118,13 @@ static void uart_auto_nkey_send(uint8_t *now_bit_report, uint8_t size) {
     if (f_byte_send) {
         report_buffer_t rpt_byte = make_report_buffer(CMD_RPT_BYTE_KB, &bytekb_report_buf[0], 8);
         send_or_queue(&rpt_byte);
-        byte_report_buff = rpt_byte;
+        report_buff_a = rpt_byte;
     }
 
     if (f_bit_send) {
         report_buffer_t rpt_bit = make_report_buffer(CMD_RPT_BIT_KB, &bitkb_report_buf[0], 16);
         send_or_queue(&rpt_bit);
-        bit_report_buff = rpt_bit;
+        report_buff_b = rpt_bit;
     }
 }
 
@@ -135,7 +137,7 @@ static void rf_send_keyboard(report_keyboard_t *report) {
     report->reserved    = 0;
     report_buffer_t rpt = make_report_buffer(CMD_RPT_BYTE_KB, &report->mods, 8);
     send_or_queue(&rpt);
-    byte_report_buff = rpt;
+    report_buff_a = rpt;
 }
 
 static void rf_send_nkro(report_nkro_t *report) {
@@ -150,10 +152,16 @@ static void rf_send_mouse(report_mouse_t *report) {
     send_or_queue(&rpt);
 }
 
-static void rf_send_extra(report_extra_t *report) {
+static void rf_send_extra_helper(uint8_t cmd, report_extra_t *report) {
     clear_report_buffer();
-    uint8_t cmd_rpt = report->report_id == REPORT_ID_CONSUMER ? CMD_RPT_CONSUME : CMD_RPT_SYS;
-    report_buffer_t rpt = make_report_buffer(cmd_rpt, (uint8_t *)(&report->usage), 2);
+    report_buffer_t rpt = make_report_buffer(cmd, (uint8_t *)(&report->usage), 2);
     send_or_queue(&rpt);
 }
 
+static void rf_send_extra(report_extra_t *report) {
+    if (report->report_id == REPORT_ID_CONSUMER) {
+        rf_send_extra_helper(CMD_RPT_CONSUME, report);
+    } else if (report->report_id == REPORT_ID_SYSTEM) {
+        rf_send_extra_helper(CMD_RPT_SYS, report);
+    }
+}

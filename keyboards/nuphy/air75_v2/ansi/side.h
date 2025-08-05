@@ -1,9 +1,6 @@
-#include "ws2812.h"
-#include "gpio.h"
-#include "stdbool.h"
-#include "chibios_config.h"
-#include "color.h"
 
+// Copyright 2023 Ryodeushii (@ryodeushii)
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 Copyright 2023 @ Nuphy <https://nuphy.com/>
 
@@ -23,103 +20,50 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#ifdef WS2812_TIMING
-#    undef WS2812_TIMING //1250
-#endif
+#include <stdbool.h>
+#include <stdint.h>
 
-#ifdef WS2812_T1H
-#    undef WS2812_T1H    // 900
-#endif
+// clang-format off
+#define SIDE_BRIGHT_MAX 5
+#define SIDE_SPEED_MAX 4
+#define SIDE_COLOUR_MAX 8
+#define RIGHT_SIDE_LINE 6
 
-#ifdef WS2812_T1L
-#    undef WS2812_T1L    // 350
-#endif
+#define SIDE_LINE 6
+#define SIDE_LED_NUM (RIGHT_SIDE_LINE + SIDE_LINE)
+// #define SIDE_LED_NUM 12
 
-#ifdef WS2812_T0H
-#    undef WS2812_T0H
-#endif
+#define LEFT_SIDE 1
+#define RIGHT_SIDE 2
 
-#ifdef WS2812_T0L
-#    undef WS2812_T0L
-#endif
+// clang-format on
 
-#define WS2812_TIMING 850
-#define WS2812_T1H 700 // Width of a 1 bit in ns
-#define WS2812_T1L (WS2812_TIMING - WS2812_T1H) // Width of a 1 bit in ns
-#define WS2812_T0H 150 // Width of a 0 bit in ns
-#define WS2812_T0L (WS2812_TIMING - WS2812_T0H) // Width of a 0 bit in ns
+/* side rgb mode */
+enum {
+    SIDE_WAVE = 0,
+    SIDE_MIX,
+    SIDE_STATIC,
+    SIDE_BREATH,
+    SIDE_OFF,
+} side_effects;
 
+// from side_right.c
+#define STARRY_INDEX_LEN (160)
+#define FIREWORK_INDEX_LEN (158)
+#define STARRY_DATA_LEN 96
+#define TIDE_DATA_LEN 120
 
-// DEPRECATED - DO NOT USE
-#if defined(NOP_FUDGE)
-#    define WS2812_BITBANG_NOP_FUDGE NOP_FUDGE
-#endif
+// from side.c
+#define RF_LED_LINK_PERIOD 500
+#define RF_LED_PAIR_PERIOD 250
+#define CHARGING_SHIFT 1
+#define RFLINK_SHIFT 0
+#define CHARGING_BREATHE 1
 
-/* Adapted from https://github.com/bigjosh/SimpleNeoPixelDemo/ */
+#define RFLINK_BLINK 1
+#define LOW_BAT_BLINK_PERIOD 500
 
-#ifndef WS2812_BITBANG_NOP_FUDGE
-#    if defined(STM32F0XX) || defined(STM32F1XX) || defined(GD32VF103) || defined(STM32F3XX) || defined(STM32F4XX) || defined(STM32L0XX) || defined(WB32F3G71xx) || defined(WB32FQ95xx) || defined(AT32F415)
-#        define WS2812_BITBANG_NOP_FUDGE 0.4
-#    else
-#        if defined(RP2040)
-#            error "Please use `vendor` WS2812 driver for RP2040"
-#        else
-#            error "WS2812_BITBANG_NOP_FUDGE configuration required"
-#        endif
-#        define WS2812_BITBANG_NOP_FUDGE 1 // this just pleases the compile so the above error is easier to spot
-#    endif
-#endif
+bool breath_tab_trend(bool trend, uint8_t playpoint);
 
-// Push Pull or Open Drain Configuration
-// Default Push Pull
-#ifndef WS2812_EXTERNAL_PULLUP
-#    define WS2812_OUTPUT_MODE PAL_MODE_OUTPUT_PUSHPULL
-#else
-#    define WS2812_OUTPUT_MODE PAL_MODE_OUTPUT_OPENDRAIN
-#endif
-
-// The reset gap can be 6000 ns, but depending on the LED strip it may have to be increased
-// to values like 600000 ns. If it is too small, the pixels will show nothing most of the time.
-#ifndef WS2812_RES
-#    define WS2812_RES (1000 * WS2812_TRST_US) // Width of the low gap between bits to cause a frame to latch
-#endif
-
-#define NUMBER_NOPS 6
-#define CYCLES_PER_SEC (CPU_CLOCK / NUMBER_NOPS * WS2812_BITBANG_NOP_FUDGE)
-#define NS_PER_SEC (1000000000L) // Note that this has to be SIGNED since we want to be able to check for negative values of derivatives
-#define NS_PER_CYCLE (NS_PER_SEC / CYCLES_PER_SEC)
-#define NS_TO_CYCLES(n) ((n) / NS_PER_CYCLE)
-
-#define wait_ns(x)                                  \
-    do {                                            \
-        for (int i = 0; i < NS_TO_CYCLES(x); i++) { \
-            __asm__ volatile("nop\n\t"              \
-                             "nop\n\t"              \
-                             "nop\n\t"              \
-                             "nop\n\t"              \
-                             "nop\n\t"              \
-                             "nop\n\t");            \
-        }                                           \
-    } while (0)
-
-
-#define    LEFT_SIDE           1
-#define    RIGHT_SIDE          2
-
-#define    SIDE_LINE           6
-#define    SIDE_LED_NUM        12
-
-
-extern   rgb_t           side_leds[SIDE_LED_NUM];
-extern   bool            flush_side_leds;
-
-extern   ws2812_led_t    ws2812_leds[WS2812_LED_COUNT];
-extern   bool            flush_rgb_leds;
-
-
-void     side_sendByte(uint8_t byte);
-bool     is_side_ws2812_off(void);
-void     side_ws2812_set_color(int i, uint8_t r, uint8_t g, uint8_t b);
-void     side_ws2812_set_color_strip(uint8_t side, uint8_t r, uint8_t g, uint8_t b);
-void     side_ws2812_flush(void);
-
+void side_rgb_set_color_left(uint8_t r, uint8_t g, uint8_t b);
+void side_rgb_set_color_right(uint8_t r, uint8_t g, uint8_t b);

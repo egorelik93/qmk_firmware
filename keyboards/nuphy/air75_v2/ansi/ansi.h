@@ -17,7 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#include "quantum.h"
+#include "color.h"
+#include "quantum_keycodes.h"
 
 enum custom_keycodes {
     RF_DFU = QK_KB_0,
@@ -27,39 +28,69 @@ enum custom_keycodes {
     LNK_BLE2,
     LNK_BLE3,
 
+    MAC_TASK,   // KC_CALC
+    MAC_SEARCH, // KC_LCTL + KC_F
     MAC_VOICE,  // F5
-    MAC_DND,    //
-    TASK,       // KC_CALC
-    SEARCH,     // KC_LCTL + KC_F
-    PRT_SCR,    // PrintScreen
-    PRT_AREA,   // PrintScreen
+    MAC_DND,
+    MAC_CONSOLE,
+    MAC_PRT,    // PrintScreen
+    MAC_PRTA,   // PrintScreen
 
-    SIDE_VAD,
     SIDE_VAI,
+    SIDE_VAD,
     SIDE_MOD,
     SIDE_HUI,
-    SIDE_SPD,
     SIDE_SPI,
-    SIDE_1,
+    SIDE_SPD,
 
     DEV_RESET,
+    SLEEP_MODE,
     BAT_SHOW,
     BAT_NUM,
     RGB_TEST,
+    LINK_TO,
+    KB_SLP,
+
+    WIN_LOCK,
+    SHIFT_GRV,
+
+    RIGHT_SIDE_VAI,
+    RIGHT_SIDE_VAD,
+    RIGHT_SIDE_MOD,
+    RIGHT_SIDE_HUI,
+    RIGHT_SIDE_SPI,
+    RIGHT_SIDE_SPD,
+    TOG_USB_SLP,
+    TOG_CAPS_IND,
+    DEBOUNCE_PRESS_INC,
+    DEBOUNCE_PRESS_DEC,
+    DEBOUNCE_PRESS_SHOW,
+    SLEEP_TIMEOUT_INC,
+    SLEEP_TIMEOUT_DEC,
+    SLEEP_TIMEOUT_SHOW,
+    MAC_GLOBE,
+    DEBOUNCE_RELEASE_INC,
+    DEBOUNCE_RELEASE_DEC,
+    DEBOUNCE_RELEASE_SHOW,
+    TOG_BAT_IND_NUM,
+    SOCDON,
+    SOCDOFF,
+    SOCDTOG,
+    FW_VERSION,
 
     NUMLOCK_INS,
     NUMLOCK_IND,
     CAPS_WORD,
-    WIN_LOCK,
-    SLEEP_MODE,
     SLEEP_NOW,
-    SLEEP_D,
-    SLEEP_I,
+    //SLEEP_D,
+    //SLEEP_I,
 
-    DEBOUNCE_D,
-    DEBOUNCE_I,
     DEBOUNCE_T,
 
     GAME_MODE,
-    SOCD_TOG
 };
+
+#define SYS_PRT G(S(KC_3))
+#define MAC_PRTA G(S(KC_4))
+#define WIN_PRTA G(S(KC_S))
+#define MAC_SEARCH G(KC_SPC)

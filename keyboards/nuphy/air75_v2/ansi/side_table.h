@@ -1,5 +1,5 @@
 /*
-Copyright 2023 @ Nuphy <https://nuphy.com/>
+Copyright 2023 @ Nuphy <https://nuphy.com/> & @jincao1
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,28 +17,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#define    BREATHE_TAB_LEN     128
+#include "side.h"
 
-#define    SIDE_BRIGHT_MAX     6
-#define    SIDE_SPEED_MAX      4
-#define    SIDE_COLOUR_MAX     10
+// data tables lengths
+#define LIGHT_TAB_LEN 101
+#define WAVE_TAB_LEN 112
+#define BREATHE_TAB_LEN 64
+#define FLOW_COLOUR_TAB_LEN 224
 
-#define    RF_LED_LINK_PERIOD  500
-#define    RF_LED_PAIR_PERIOD  250
-
-//----------------------------------------------------------------
-//        color table
-//----------------------------------------------------------------
-const uint8_t colour_lib[SIDE_COLOUR_MAX][3] =
-{
-    {RGB_RED},
-    {RGB_ORANGE},
-    {RGB_YELLOW},
-    {RGB_GREEN},
-    {RGB_SPRINGGREEN},
-    {RGB_CYAN},
-    {RGB_BLUE},
-    {RGB_PURPLE},
-    {RGB_MAGENTA},
-    {RGB_WHITE}
-};
+extern const uint8_t breathe_data_tab[BREATHE_TAB_LEN];
+extern const uint8_t wave_data_tab[WAVE_TAB_LEN];
+extern const uint8_t flow_rainbow_colour_tab[FLOW_COLOUR_TAB_LEN][3];
+extern const uint8_t colour_lib[9][3];
+extern const uint8_t side_speed_tab[5][5];
+extern const uint8_t side_light_tab[6];
+extern const uint8_t side_led_index_tab[SIDE_LINE][2];
+extern const uint8_t bat_percent_tab[6][3];

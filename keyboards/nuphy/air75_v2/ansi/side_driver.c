@@ -1,7 +1,26 @@
-#include "ws2812_driver.h"
+// Copyright 2023 Persama (@Persama)
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+Copyright 2023 @ Nuphy <https://nuphy.com/>
 
 rgb_t    side_leds[SIDE_LED_NUM] = {0};
 bool     flush_side_leds         = 0;
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include <ch.h>
+#include <hal.h>
+
+#include "quantum.h"
+#include "ws2812.h"
+#include "ws2812_driver.h"
 
 void side_sendByte(uint8_t byte) {
     // WS2812 protocol wants most significant bits first
@@ -24,55 +43,19 @@ void side_sendByte(uint8_t byte) {
     }
 }
 
-bool is_side_ws2812_off(void) {
-    for (int i = 0; i < SIDE_LED_NUM; i++) {
-        if ((side_leds[i].r != 0) || (side_leds[i].g != 0) || (side_leds[i].b != 0)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-void side_ws2812_set_color(int i, uint8_t r, uint8_t g, uint8_t b) {
-    r >>= 2, g >>= 2, b >>= 2;
-    if (side_leds[i].r != r || side_leds[i].g != g || side_leds[i].b != b) {
-        flush_side_leds = true;
-    }
-    side_leds[i].r = r;
-    side_leds[i].g = g;
-    side_leds[i].b = b;
-}
-
-void side_ws2812_set_color_strip(uint8_t side, uint8_t r, uint8_t g, uint8_t b) {
-    // side = 1 => left
-    // side = 2 => right
-    // side = 3 => both
-    uint8_t start = 0;
-    uint8_t end   = SIDE_LED_NUM;
-    if (side == LEFT_SIDE)  { end = end - SIDE_LINE; }
-    if (side == RIGHT_SIDE) { start = start + SIDE_LINE; }
-
-    for (uint8_t i = start; i < end; i++) {
-        side_ws2812_set_color(i, r, g, b);
-    }
-}
-
-void side_ws2812_flush(void) {
-    if (!flush_side_leds) { return; }
-
+// Setleds for standard RGB
+void side_ws2812_setleds(rgb_led_t *ledarray, uint16_t leds) {
     // this code is very time dependent, so we need to disable interrupts
     chSysLock();
 
-    for (int i = 0; i < SIDE_LED_NUM; i++) {
+    for (uint8_t i = 0; i < leds; i++) {
         // WS2812 protocol dictates grb order
-        side_sendByte(side_leds[i].g);
-        side_sendByte(side_leds[i].r);
-        side_sendByte(side_leds[i].b);
+        side_sendByte(ledarray[i].g);
+        side_sendByte(ledarray[i].r);
+        side_sendByte(ledarray[i].b);
     }
 
-    wait_ns(WS2812_RES);
+ //   wait_ns(WS2812_RES);
 
     chSysUnlock();
-
-    flush_side_leds = false;
 }
