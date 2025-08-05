@@ -7,12 +7,15 @@
 #include "timer.h"
 #include "kb_util.h"
 
-extern uint8_t       r_temp, g_temp, b_temp;
+extern rgb_t current_rgb;
 extern void          side_rgb_set_color(int index, uint8_t red, uint8_t green, uint8_t blue);
 extern void          side_rgb_set_color_right(uint8_t red, uint8_t green, uint8_t blue);
 extern void          light_point_playing(uint8_t trend, uint8_t step, uint8_t len, uint8_t *point);
 extern void          side_rgb_brightness(uint8_t light_temp);
 
+#define r_temp current_rgb.r
+#define g_temp current_rgb.g
+#define b_temp current_rgb.b
 
 uint8_t  right_side_play_point = 0;
 

@@ -1,11 +1,13 @@
 {
-    "keyboard_name": "NuPhy Air75 V2",
     "manufacturer": "NuPhy",
+    "keyboard_name": "NuPhy Air75 V2",
     "usb":{
         "vid": "0x19F5",
         "pid": "0x3246",
         "device_version": "1.2.0",
-        "no_startup_check": true
+        "no_startup_check": true,
+        "polling_interval": 1,
+        // "suspend_wakeup_delay": 100,
     },
     "host": {
         "default": {
@@ -17,9 +19,14 @@
         "mousekey": true,
         "extrakey": true,
         "console": true,
+        // "key_lock": false,
         "nkro": true,
-        "key_lock": true,
         "rgb_matrix": true
+    },
+    "caps_word": {
+        // "double_tap_shift_turns_on": true,
+        "enabled": true,
+        "idle_timeout": 5000
     },
     "processor": "STM32F072",
     "bootloader": "stm32-dfu",
@@ -31,7 +38,8 @@
     },
     "matrix_pins": {
         "cols": ["A4", "A5", "A6", "B9", "B0", "B1", "B10", "B11", "B12", "B13", "B14", "B15", "A8", "A9", "A10", "A15", "B3"],
-        "rows": ["C14", "C15", "A0", "A1", "A2", "A3"]
+        "rows": ["C14", "C15", "A0", "A1", "A2", "A3"],
+        "io_delay": 30 
     },
     "diode_direction": "COL2ROW",
     "dynamic_keymap": {
@@ -49,7 +57,17 @@
       "val_steps": 26,
       "speed_steps": 52,
       "sleep": true,
+      "led_process_limit": 8,
+      "led_flush_limit": 26,
+      "default": { 
+          "animation": "cycle_left_right",
+          "hue": 0,
+          "val": 72,
+          "speed": 153
+      },
       "animations": {
+          "solid_color": true,
+          "alphas_mods": true,
           "gradient_up_down": true,
           "gradient_left_right": true,
           "breathing": true,
@@ -70,11 +88,15 @@
           "dual_beacon": true,
           "rainbow_beacon": true,
           "rainbow_pinwheels": true,
+          "flower_blooming": true,
           "raindrops": true,
           "jellybean_raindrops": true,
           "hue_breathing": true,
           "hue_pendulum": true,
           "hue_wave": true,
+          "pixel_fractal": true,
+          "pixel_flow": true,
+          "pixel_rain": true,
           "typing_heatmap": true,
           "digital_rain": true,
           "solid_reactive_simple": true,
@@ -88,7 +110,12 @@
           "splash": true,
           "multisplash": true,
           "solid_splash": true,
-          "solid_multisplash": true
+          "solid_multisplash": true,
+          "starlight": true,
+          "starlight_dual_hue": true,
+          "starlight_dual_sat": true,
+          "riverflow": true,
+          "effect_max": true
         },
         "layout": [
             {"matrix": [0, 0], "x": 0, "y": 0, "flags": 4},
@@ -183,7 +210,8 @@
         ]
     },
     "ws2812": {
-        "pin": "A7"
+        "pin": "A7",
+        "driver": "bitbang"
     },
     "community_layouts": ["75_ansi"],
     "layouts": {
@@ -265,7 +293,7 @@
                 {"label": ">.", "matrix": [4, 10], "x": 10.25, "y": 4},
                 {"label": "?/", "matrix": [4, 11], "x": 11.25, "y": 4},
                 {"label": "Shift", "matrix": [4, 13], "x": 12.25, "y": 4, "w": 1.75},
-                {"label": "↑", "matrix": [4, 14], "x": 14, "y": 4},
+                {"label": "\u2191", "matrix": [4, 14], "x": 14, "y": 4},
                 {"label": "End", "matrix": [2, 15], "x": 15, "y": 4},
 
                 {"label": "Ctrl", "matrix": [5, 0], "x": 0, "y": 5, "w": 1.25},
@@ -275,9 +303,9 @@
                 {"label": "Cmd", "matrix": [5, 9], "x": 10, "y": 5},
                 {"label": "Fn", "matrix": [5, 10], "x": 11, "y": 5},
                 {"label": "Ctrl", "matrix": [3, 14], "x": 12, "y": 5},
-                {"label": "←", "matrix": [5, 13], "x": 13, "y": 5},
-                {"label": "↓", "matrix": [5, 14], "x": 14, "y": 5},
-                {"label": "→", "matrix": [5, 15], "x": 15, "y": 5}
+                {"label": "\u2190", "matrix": [5, 13], "x": 13, "y": 5},
+                {"label": "\u2193", "matrix": [5, 14], "x": 14, "y": 5},
+                {"label": "\u2192", "matrix": [5, 15], "x": 15, "y": 5}
             ]
         }
     }

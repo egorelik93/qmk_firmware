@@ -26,6 +26,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "ansi.h"
 #include "usb_main.h"
 #include "mcu_pwr.h"
+#include "redefine.h"
+#include "version.h"
 
 #ifdef VIA_ENABLE
 #    include "eeprom.h"
@@ -47,6 +49,9 @@ extern bool            f_sleep_timeout_show;
 extern uint16_t        rf_sw_press_delay;
 extern uint16_t        rf_linking_time;
 
+// TODO: adi, Not currently using this.
+// char            socd_type[4][14] = { "disabled", "cancellation", "exclusion", "nullification" };
+
 extern void exit_light_sleep(void);
 
 extern kb_config_t     kb_config;
@@ -67,11 +72,83 @@ bool pre_process_record_kb(uint16_t keycode, keyrecord_t *record) {
 socd_cleaner_t socd_v = {{KC_W, KC_S}, SOCD_CLEANER_LAST};
 socd_cleaner_t socd_h = {{KC_A, KC_D}, SOCD_CLEANER_LAST};
 
+// TODO: I think one of the strategies doesn't have an equivalent in socd_cleaner.
+/*bool process_record_socd(uint16_t keycode, keyrecord_t *record) {
+    if (kb_config.socd_mode == 0) { return true; }
+    uint8_t socd_array[] = { SOCD_KEYS };
+    for (uint8_t idx = 0; idx < sizeof_array(socd_array); ++idx) {
+        if ( keycode != socd_array[idx] ) { continue; }
+
+        if (idx % 2 == 0) {
+            left_pressed = record->event.pressed;
+            idx++;
+        } else {
+            right_pressed = record->event.pressed;
+            idx--;
+        }
+
+        if (record->event.pressed) {
+            if (right_pressed + left_pressed > 2) {
+                unregister_code(socd_array[idx]);
+                if (kb_config.socd_mode == 3) { return false; }
+            }
+        } else {
+            if (right_pressed + left_pressed > 2) {
+                if (kb_config.socd_mode >= 2) { register_code(socd_array[idx]); }
+            }
+        }
+        return true;
+    }
+    return true;
+}*/
+
+// TODO
+/* check if we should early return */
+bool process_record_early(uint16_t keycode, keyrecord_t *record) {
+
+    switch (keycode) {
+        case SIDE_MOD:
+        case SIDE_SPI:
+        case SIDE_SPD:
+#ifdef SIDE_SEPARATE
+        case RIGHT_SIDE_MOD:
+        case RIGHT_SIDE_SPI:
+        case RIGHT_SIDE_SPD:
+#endif
+        case SLEEP_MODE:
+        case SLEEP_TIMEOUT_INC:
+        case SLEEP_TIMEOUT_DEC:
+        case SLEEP_TIMEOUT_SHOW:
+        case CAPS_WORD:
+            if (game_mode_enable) { return false; }
+            return true;
+
+        case BAT_SHOW:
+        case KB_SLP:
+        //case SLEEP_NOW:
+            if (game_mode_enable) { return false; }
+            return true;
+
+        case QK_RGB_MATRIX_SPEED_UP:
+        case QK_RGB_MATRIX_SPEED_DOWN:
+            if (game_mode_enable) { return false; }
+            return true;
+
+        default:
+            return true;
+    }
+}
+
 /* qmk process record */
 bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     if (!process_record_user(keycode, record)) {
         return false;
     }
+
+    if (!process_record_early(keycode, record)) {
+        return false;
+    }
+
     // socd handling
     if (!process_socd_cleaner(keycode, record, &socd_v)) {
         return false;
@@ -83,11 +160,19 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
 #if (WORK_MODE == THREE_MODE)
         case RF_DFU:
+            if (game_mode_enable) { return false; }
             if (record->event.pressed) {
-                if (dev_info.link_mode != LINK_USB) {
-                    return false;
+                f_rf_dfu_press = 1;
+            } else {
+                if (f_rf_dfu_press) {
+                    f_rf_dfu_press = 0;
+                    kb_config.rf_delay_step = (kb_config.rf_delay_step + 1) % 5;
+                    save_config_to_eeprom();
+#ifndef NO_DEBUG
+                    dprintf("rf_delay: %d\n", kb_config.rf_delay_step * 200 + 80);
+#endif
+                    signal_rgb_led(kb_config.rf_delay_step * 2, led_idx.RF_DFU, UINT8_MAX, 3000);
                 }
-                uart_send_cmd(CMD_RF_DFU, 10, 20);
             }
             return false;
 #endif
@@ -158,11 +243,17 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                 if (rf_sw_press_delay < RF_LONG_PRESS_DELAY) {
                     link_mode_set();
                 }
+                rgb_matrix_update_pwm_buffers();
             }
             return false;
 #endif
         case MAC_TASK:
             if (record->event.pressed) {
+                /*if (dev_info.sys_sw_state == SYS_SW_MAC) {
+                    tap_code(KC_MCTL);
+                } else {
+                    tap_code(KC_CALC);
+                }*/
                 host_consumer_send(0x029F);
             } else {
                 host_consumer_send(0);
@@ -171,18 +262,31 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
         case MAC_SEARCH:
             if (record->event.pressed) {
-                register_code(KC_LGUI);
-                register_code(KC_SPACE);
-                wait_ms(50);
-                unregister_code(KC_LGUI);
-                unregister_code(KC_SPACE);
+                if (dev_info.sys_sw_state == SYS_SW_MAC) {
+                    register_code(KC_LGUI);
+                    register_code(KC_SPACE);
+                    // wait_ms(50);
+                    wait_ms(TAP_CODE_DELAY);
+                    unregister_code(KC_LGUI);
+                    unregister_code(KC_SPACE);
+                } else {
+                    register_code(KC_LCTL);
+                    register_code(KC_F);
+                    wait_ms(TAP_CODE_DELAY);
+                    unregister_code(KC_F);
+                    unregister_code(KC_LCTL);
+                }
             }
             return false;
 
         case MAC_VOICE:
             if (record->event.pressed) {
-                host_consumer_send(0xcf);
-            } else {
+                if (dev_info.sys_sw_state == SYS_SW_MAC) {
+                    host_consumer_send(0xcf);
+                } else {
+                    tap_code(KC_F5);
+                }
+            } else if (dev_info.sys_sw_state == SYS_SW_MAC) {
                 host_consumer_send(0);
             }
             return false;
@@ -197,8 +301,10 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
         case MAC_DND:
             if (record->event.pressed) {
-                host_system_send(0x9b);
-            } else {
+                if (dev_info.sys_sw_state == SYS_SW_MAC) {
+                    host_system_send(0x9b);
+                }
+            } else if (dev_info.sys_sw_state == SYS_SW_MAC) {
                 host_system_send(0);
             }
             return false;
@@ -213,13 +319,18 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
         case MAC_PRT:
             if (record->event.pressed) {
-                register_code(KC_LGUI);
-                register_code(KC_LSFT);
-                register_code(KC_3);
-                wait_ms(50);
-                unregister_code(KC_3);
-                unregister_code(KC_LSFT);
-                unregister_code(KC_LGUI);
+                if (dev_info.sys_sw_state == SYS_SW_MAC) {
+                    register_code(KC_LGUI);
+                    register_code(KC_LSFT);
+                    register_code(KC_3);
+                    // wait_ms(50);
+                    wait_ms(TAP_CODE_DELAY);
+                    unregister_code(KC_3);
+                    unregister_code(KC_LSFT);
+                    unregister_code(KC_LGUI);
+                } else {
+                    tap_code(KC_PSCR);
+                }
             }
             return false;
 
@@ -229,7 +340,8 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                     register_code(KC_LGUI);
                     register_code(KC_LSFT);
                     register_code(KC_S);
-                    wait_ms(50);
+                    //wait_ms(50);
+                    wait_ms(TAP_CODE_DELAY);
                     unregister_code(KC_S);
                     unregister_code(KC_LSFT);
                     unregister_code(KC_LGUI);
@@ -239,7 +351,8 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                     register_code(KC_LGUI);
                     register_code(KC_LSFT);
                     register_code(KC_4);
-                    wait_ms(50);
+                    //wait_ms(50);
+                    wait_ms(TAP_CODE_DELAY);
                     unregister_code(KC_4);
                     unregister_code(KC_LSFT);
                     unregister_code(KC_LGUI);
@@ -339,6 +452,11 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
         case WIN_LOCK:
             if (record->event.pressed) {
+                /*if (get_highest_layer(layer_state) == M_LAYER || keycode == WIN_LOCK) {
+                    keymap_config.no_gui = !keymap_config.no_gui;
+                    signal_rgb_led(!keymap_config.no_gui * 3, led_idx.KC_LGUI, UINT8_MAX, 3000);
+                    return false;
+                }*/
                 keymap_config.no_gui = !keymap_config.no_gui;
                 eeconfig_update_keymap(&keymap_config);
                 break_all_key();
@@ -354,6 +472,59 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             f_rgb_test_press = record->event.pressed;
             return false;
 
+        case NUMLOCK_INS:
+            if (record->event.pressed) {
+                f_numlock_press = 1;
+                if (get_mods() & MOD_MASK_CSA) {
+                    tap_code(KC_INS);
+                    f_numlock_press = 0;
+                }
+            } else if (f_numlock_press) {
+                f_numlock_press = 0;
+                tap_code(KC_INS);
+            }
+            return false;
+
+        case NUMLOCK_IND:
+            if (record->event.pressed) {
+                kb_config.numlock_state = (kb_config.numlock_state + 1) % (3 - game_mode_enable);
+                if (!game_mode_enable) {
+                    save_config_to_eeprom();
+                }
+            }
+            return false;
+
+        // TODO: I thought QMK has its own caps-word, but either way not a feature
+        // I'm interested in.
+        /*
+        case CAPS_WORD:
+            f_caps_word_tg = record->event.pressed;
+            save_config_to_eeprom();
+            return false;
+
+        case KC_LSFT:
+            if (!record->event.pressed) {
+                if ((!kb_config.caps_word_enable || game_mode_enable) && is_caps_word_on()) { caps_word_off(); }
+            }
+            return true;
+        */
+
+        // TODO: I implemnted my own version of this in the custom branch, using KB_SLP
+        /*
+            case SLEEP_NOW:
+            if (USB_ACTIVE) { return false; }
+            if (record->event.pressed) {
+                wait_ms(100);
+                if (kb_config.sleep_mode == 0) { return true; }
+                else {
+                    f_goto_sleep     = 1;
+                    f_goto_deepsleep = 1;
+                    no_act_time      = 100;
+                    break_all_key();
+                }
+            }
+            return false; */
+
         case LINK_TO:
             if (record->event.pressed) {
                 uint16_t mask = LINK_TIMEOUT ^ LINK_TIMEOUT_ALT;
@@ -362,11 +533,12 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
 
-        case RM_VALU: // ensure LED powers on with brightness increase
+        // TODO: Apparently an alias for QK_RGB_MATRIX_VALUE_UP
+        /*case RM_VALU: // ensure LED powers on with brightness increase
             if (record->event.pressed) {
                 pwr_rgb_led_on();
             }
-            return true;
+            return true;*/
 
         case KB_SLP:
             if (record->event.pressed) {
@@ -406,12 +578,18 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
         case DEBOUNCE_PRESS_INC:
             if (record->event.pressed) {
                 adjust_debounce(1, false);
+#ifndef NO_DEBUG
+                dprintf("debounce press:      %dms\n", kb_config.debounce_press_ms);
+#endif
             }
             return false;
 
         case DEBOUNCE_PRESS_DEC:
             if (record->event.pressed) {
                 adjust_debounce(0, false);
+#ifndef NO_DEBUG
+                dprintf("debounce press:      %dms\n", kb_config.debounce_press_ms);
+#endif
             }
             return false;
         case DEBOUNCE_RELEASE_SHOW:
@@ -423,14 +601,40 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
         case DEBOUNCE_RELEASE_INC:
             if (record->event.pressed) {
                 adjust_debounce(1, true);
+#ifndef NO_DEBUG
+                dprintf("debounce release:      %dms\n", kb_config.debounce_release_ms);
+#endif
             }
             return false;
 
         case DEBOUNCE_RELEASE_DEC:
             if (record->event.pressed) {
                 adjust_debounce(0, true);
+#ifndef NO_DEBUG
+                dprintf("debounce release:      %dms\n", kb_config.debounce_release_ms);
+#endif
             }
             return false;
+
+        // TODO
+        case DEBOUNCE_T:
+            if (record->event.pressed) {
+                debounce_type();
+            }
+            return false;
+
+        // TODO: I think this is sleep timeout, but not sure.
+        /*case SLEEP_D:
+        case SLEEP_I:
+            if (kb_config.sleep_mode == 0) { return true; }
+            if (record->event.pressed) {
+                uint8_t dir = keycode % SLEEP_D;
+                kb_config.light_sleep  = step_helper(dir, kb_config.light_sleep);
+#ifndef NO_DEBUG
+                dprintf("light sleep time:    %dmin\n", kb_config.light_sleep);
+#endif
+            }
+            return false;*/
 
         case SLEEP_TIMEOUT_SHOW:
             if (record->event.pressed) {
@@ -441,12 +645,18 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
         case SLEEP_TIMEOUT_INC:
             if (record->event.pressed) {
                 adjust_sleep_timeout(1);
+#ifndef NO_DEBUG
+                dprintf("sleep timeout:    %lumin\n", get_sleep_timeout());
+#endif
             }
             return false;
 
         case SLEEP_TIMEOUT_DEC:
             if (record->event.pressed) {
                 adjust_sleep_timeout(0);
+#ifndef NO_DEBUG
+                dprintf("sleep timeout:    %lumin\n", get_sleep_timeout());
+#endif
             }
             return false;
         case TOG_BAT_IND_NUM:
@@ -455,6 +665,19 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                 save_config_to_eeprom();
             }
             return false;
+
+        case GAME_MODE:
+            if (record->event.pressed) {
+                f_gmode_reset_press = 1;
+            } else {
+                if (f_gmode_reset_press) {
+                    f_gmode_reset_press = 0;
+                    game_mode_enable = !game_mode_enable;
+                    game_mode_tweak();
+                }
+            }
+            return false;
+
         case SOCDON: // Turn SOCD Cleaner on.
             if (record->event.pressed) {
                 socd_cleaner_enabled = true;
@@ -468,6 +691,11 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
         case SOCDTOG: // Toggle SOCD Cleaner.
             if (record->event.pressed) {
                 socd_cleaner_enabled = !socd_cleaner_enabled;
+// TODO
+/*#ifndef NO_DEBUG
+                dprintf("SOCD:    %s(%d)\n", socd_type[kb_config.socd_mode], kb_config.socd_mode);
+#endif
+*/
             }
             return false;
         case FW_VERSION:
@@ -476,10 +704,116 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
 
+        case QK_RGB_MATRIX_VALUE_UP:
+            if (record->event.pressed) {
+                // TODO: older, from the code for RM_VALU.
+                //       ensure LED powers on with brightness increase
+                pwr_rgb_led_on();
+                rgb_matrix_increase_val_noeeprom();
+                save_rgb_config();
+            }
+            return false;
+
+        case QK_RGB_MATRIX_VALUE_DOWN:
+            if (record->event.pressed) {
+                rgb_matrix_decrease_val_noeeprom();
+                save_rgb_config();
+            }
+            return false;
+
+        case QK_RGB_MATRIX_MODE_NEXT:
+            if (record->event.pressed) {
+                // TODO: adi, not interested in separate game mode settings
+                /*if (game_mode_enable) {
+                    rgb_matrix_step_game_mode(1);
+                    save_rgb_config();
+                    return false;
+                }*/
+                rgb_matrix_step_noeeprom();
+                save_rgb_config();
+            }
+            return false;
+
+        case QK_RGB_MATRIX_MODE_PREVIOUS:
+            if (record->event.pressed) {
+                // TODO: adi, not interested in separate game mode settings
+                /*if (game_mode_enable) {
+                    rgb_matrix_step_game_mode(0);
+                    save_rgb_config();
+                    return false;
+                }*/
+                rgb_matrix_step_reverse_noeeprom();
+                save_rgb_config();
+            }
+            return false;
+
+        case QK_RGB_MATRIX_HUE_UP:
+            if (record->event.pressed) {
+                rgb_matrix_increase_hue_noeeprom();
+                save_rgb_config();
+            }
+            return false;
+
+        case QK_RGB_MATRIX_HUE_DOWN:
+            if (record->event.pressed) {
+                rgb_matrix_decrease_hue_noeeprom();
+                save_rgb_config();
+            }
+            return false;
+
+        case QK_RGB_MATRIX_SPEED_UP:
+            if (record->event.pressed) {
+                rgb_matrix_increase_speed_noeeprom();
+                save_rgb_config();
+            }
+            return false;
+
+        case QK_RGB_MATRIX_SPEED_DOWN:
+            if (record->event.pressed) {
+                rgb_matrix_decrease_speed_noeeprom();
+                save_rgb_config();
+            }
+            return false;
+
+        case QK_RGB_MATRIX_SATURATION_UP:
+            if (record->event.pressed) {
+                rgb_matrix_increase_sat_noeeprom();
+                save_rgb_config();
+            }
+            return false;
+
+        case QK_RGB_MATRIX_SATURATION_DOWN:
+            if (record->event.pressed) {
+                rgb_matrix_decrease_sat_noeeprom();
+                save_rgb_config();
+            }
+            return false;
+
+        case QK_RGB_MATRIX_TOGGLE:
+            if (record->event.pressed) {
+                rgb_matrix_toggle_noeeprom();
+                if (!game_mode_enable) {
+                    save_rgb_config();
+                }
+            }
+            return false;
+
         default:
             return true;
     }
     return true;
+}
+
+void post_process_record_kb(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+#ifndef NO_DEBUG
+        case DB_TOGG:
+            dprintf("Keyboard: %s @ QMK: %s | BUILD: %s (%s)\n", QMK_KEYBOARD, QMK_VERSION, QMK_BUILDDATE, QMK_GIT_HASH);
+            break;
+#endif
+        default:
+            break;
+    }
 }
 
 // self note - this won't get called if RGB matrix is suspended or if there's no effect
@@ -514,6 +848,9 @@ bool rgb_matrix_indicators_kb(void) {
     // Original
     // fix power-on brightness is abnormal
     //user_set_rgb_color(RGB_MATRIX_LED_COUNT - 1, 0, 0, 0);
+
+    // low power mode
+    power_save();
 
     // JinCao version
     // power down unused LEDs
@@ -630,6 +967,7 @@ bool rgb_matrix_indicators_advanced_kb(uint8_t led_min, uint8_t led_max) {
 /* qmk keyboard post init */
 void keyboard_post_init_kb(void) {
     gpio_init();
+    // mcu_timer6_init();
 
 #if (WORK_MODE == THREE_MODE)
     rf_uart_init();
@@ -639,8 +977,21 @@ void keyboard_post_init_kb(void) {
     break_all_key();
     dial_sw_fast_scan();
     load_eeprom_data();
+
+    reset_led_idx();
+
+/*#ifndef NO_DEBUG
+    debug_enable   = false;
+    // debug_matrix   = true;
+    // debug_keyboard = true;
+    // debug_mouse    = true;
+#endif*/
+    // TODO
+    interrupt_source_init();
+
     keyboard_post_init_user();
 }
+
 
 /* qmk housekeeping task */
 void housekeeping_task_kb(void) {
@@ -658,9 +1009,21 @@ void housekeeping_task_kb(void) {
 
     dial_sw_scan();
 
-    side_led_show();
+    led_show();
+
+#ifndef NO_DEBUG
+    user_debug();
+#endif
+
+    delay_update_eeprom_data();
+
+    if (game_mode_enable) { return; }
 
     sleep_handle();
+
+    // TODO
+    // idle_enter_sleep();
+
 }
 
 void kb_config_init(void) {
@@ -689,6 +1052,11 @@ void kb_config_init(void) {
     kb_config.battery_indicator_numeric    = DEFAULT_BATTERY_INDICATOR_NUMERIC;
     kb_config.show_socd_indicator          = DEFAULT_SHOW_SOCD_INDICATOR;
     kb_config.rf_link_timeout              = LINK_TIMEOUT_ALT;
+
+    kb_config.caps_word_enable             = DEFAULT_CAPS_WORD_ENABLE;
+    kb_config.numlock_state                = DEFAULT_NUMLOCK_STATE;
+    kb_config.rf_delay_step                = DEFAULT_RF_DELAY_STEP;
+    kb_config.debounce_type                = DEFAULT_DEBOUNCE_TYPE;
 }
 
 uint32_t read_custom_config(void *data, uint32_t offset, uint32_t length) {
@@ -712,12 +1080,26 @@ void load_config_from_eeprom(void) {
 }
 
 void save_config_to_eeprom(void) {
+    //write_custom_config(&kb_config, 0, sizeof(kb_config));
+    call_update_eeprom_data(&user_update);
+}
+
+void save_config_to_eeprom_now(void) {
     write_custom_config(&kb_config, 0, sizeof(kb_config));
+}
+
+void save_rgb_config(void) {
+    // TODO: adi, not interested in separate game mode settings
+    /*if (game_mode_enable) {
+        save_config_to_eeprom();
+    } else */{
+        call_update_eeprom_data(&rgb_update);
+    }
 }
 
 #ifdef VIA_ENABLE
 void via_init_kb(void) {
-    init_kb_config();
+    kb_config_init();
     // If the EEPROM has the magic, the data is good.
     // OK to load from EEPROM
     if (eeconfig_is_enabled()) {
@@ -763,7 +1145,7 @@ void via_config_set_value(uint8_t *data)
             kb_config.side_speed = *value_data;
             break;
         case id_side_light_color:
-            kb_config.side_color = *value_data;
+            kb_config.side_colour = *value_data;
             break;
         case id_side_light_brightness:
             kb_config.side_light = *value_data;
@@ -777,7 +1159,7 @@ void via_config_set_value(uint8_t *data)
             kb_config.right_side_speed = *value_data;
             break;
         case id_right_side_light_color:
-            kb_config.right_side_color = *value_data;
+            kb_config.right_side_colour = *value_data;
             break;
         case id_right_side_light_brightness:
             kb_config.right_side_light = *value_data;
@@ -831,7 +1213,7 @@ void via_config_get_value(uint8_t *data) {
             *value_data = kb_config.side_speed;
             break;
         case id_side_light_color:
-            *value_data = kb_config.side_color;
+            *value_data = kb_config.side_colour;
             break;
         case id_side_light_brightness:
             *value_data = kb_config.side_light;
@@ -845,7 +1227,7 @@ void via_config_get_value(uint8_t *data) {
             *value_data = kb_config.right_side_speed;
             break;
         case id_right_side_light_color:
-            *value_data = kb_config.right_side_color;
+            *value_data = kb_config.right_side_colour;
             break;
         case id_right_side_light_brightness:
             *value_data = kb_config.right_side_light;

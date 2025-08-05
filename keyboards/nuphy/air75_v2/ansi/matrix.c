@@ -84,6 +84,8 @@ uint8_t matrix_scan_custom(matrix_row_t current_matrix[]) {
 
         changed |= (current_matrix[current_row] != cols);
 
+        matrix_output_unselect_delay(current_row, changed); // wait for all Row signals to go HIGH
+
         current_matrix[current_row] = cols;
     }
 

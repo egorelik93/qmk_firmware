@@ -3,10 +3,8 @@
 /*
 Copyright 2023 @ Nuphy <https://nuphy.com/>
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
+rgb_t    side_leds[SIDE_LED_NUM] = {0};
+bool     flush_side_leds         = 0;
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -22,49 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "quantum.h"
 #include "ws2812.h"
-
-/* Adapted from https://github.com/bigjosh/SimpleNeoPixelDemo/ */
-
-#ifndef NOP_FUDGE
-#    if defined(STM32F0XX) || defined(STM32F1XX) || defined(GD32VF103) || defined(STM32F3XX) || defined(STM32F4XX) || defined(STM32L0XX) || defined(WB32F3G71xx) || defined(WB32FQ95xx)
-#        define NOP_FUDGE 0.4
-#    else
-#        error("NOP_FUDGE configuration required")
-#        define NOP_FUDGE 1 // this just pleases the compiler so the above error is easier to spot
-#    endif
-#endif
-
-// Push Pull or Open Drain Configuration
-// Default Push Pull
-#ifndef WS2812_EXTERNAL_PULLUP
-#    define WS2812_OUTPUT_MODE PAL_MODE_OUTPUT_PUSHPULL
-#else
-#    define WS2812_OUTPUT_MODE PAL_MODE_OUTPUT_OPENDRAIN
-#endif
-
-// The reset gap can be 6000 ns, but depending on the LED strip it may have to be increased
-// to values like 600000 ns. If it is too small, the pixels will show nothing most of the time.
-#ifndef WS2812_RES
-#    define WS2812_RES (1000 * WS2812_TRST_US) // Width of the low gap between bits to cause a frame to latch
-#endif
-
-#define NUMBER_NOPS 6
-#define CYCLES_PER_SEC (CPU_CLOCK / NUMBER_NOPS * NOP_FUDGE)
-#define NS_PER_SEC (1000000000L) // Note that this has to be SIGNED since we want to be able to check for negative values of derivatives
-#define NS_PER_CYCLE (NS_PER_SEC / CYCLES_PER_SEC)
-#define NS_TO_CYCLES(n) ((n) / NS_PER_CYCLE)
-
-#define wait_ns(x)                                  \
-    do {                                            \
-        for (int i = 0; i < NS_TO_CYCLES(x); i++) { \
-            __asm__ volatile("nop\n\t"              \
-                             "nop\n\t"              \
-                             "nop\n\t"              \
-                             "nop\n\t"              \
-                             "nop\n\t"              \
-                             "nop\n\t");            \
-        }                                           \
-    } while (0)
+#include "ws2812_driver.h"
 
 void side_sendByte(uint8_t byte) {
     // WS2812 protocol wants most significant bits first

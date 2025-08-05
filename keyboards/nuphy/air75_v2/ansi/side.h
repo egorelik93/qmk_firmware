@@ -33,8 +33,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define SIDE_LED_NUM (RIGHT_SIDE_LINE + SIDE_LINE)
 // #define SIDE_LED_NUM 12
 
-#define SIDE_LEFT 0
-#define SIDE_RIGHT SIDE_LINE
+#define LEFT_SIDE 1
+#define RIGHT_SIDE 2
 
 // clang-format on
 

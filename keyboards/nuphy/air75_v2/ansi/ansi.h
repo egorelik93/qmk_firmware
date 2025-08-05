@@ -28,13 +28,13 @@ enum custom_keycodes {
     LNK_BLE2,
     LNK_BLE3,
 
-    MAC_TASK,
-    MAC_SEARCH,
-    MAC_VOICE,
+    MAC_TASK,   // KC_CALC
+    MAC_SEARCH, // KC_LCTL + KC_F
+    MAC_VOICE,  // F5
     MAC_DND,
     MAC_CONSOLE,
-    MAC_PRT,
-    MAC_PRTA,
+    MAC_PRT,    // PrintScreen
+    MAC_PRTA,   // PrintScreen
 
     SIDE_VAI,
     SIDE_VAD,
@@ -77,6 +77,17 @@ enum custom_keycodes {
     SOCDOFF,
     SOCDTOG,
     FW_VERSION,
+
+    NUMLOCK_INS,
+    NUMLOCK_IND,
+    CAPS_WORD,
+    SLEEP_NOW,
+    //SLEEP_D,
+    //SLEEP_I,
+
+    DEBOUNCE_T,
+
+    GAME_MODE,
 };
 
 #define SYS_PRT G(S(KC_3))
