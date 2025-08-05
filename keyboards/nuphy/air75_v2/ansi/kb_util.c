@@ -561,7 +561,7 @@ void timer_pro(void) {
  */
 void load_eeprom_data(void) {
     load_config_from_eeprom();
-    if (kb_config.default_brightness_flag != 0x45) {
+    if (kb_config.init_flag != 0x45) {
         kb_config_reset();
     }
 }
@@ -665,7 +665,7 @@ void kb_config_reset(void) {
 
     kb_config_init();
     // mark config as initiated
-    kb_config.default_brightness_flag = 0x45;
+    kb_config.init_flag = 0x45;
     keymap_config.no_gui = 0;
 
     user_config_override();
