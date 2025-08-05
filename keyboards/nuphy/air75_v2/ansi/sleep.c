@@ -32,15 +32,20 @@ extern bool            f_wakeup_prepare;
 void side_rgb_set_color_all(uint8_t r, uint8_t g, uint8_t b);
 void side_rgb_refresh(void);
 
+void signal_sleep(uint8_t r, uint8_t g, uint8_t b) {
+    // Visual cue for sleep/wake on side LED.
+    pwr_side_led_on();
+    wait_ms(50); // give some time to ensure LED powers on.
+    side_rgb_set_color_all(r, g, b);
+    side_rgb_refresh();
+    wait_ms(500);
+}
+
 void deep_sleep_handle(void) {
     // break_all_key(); // reset keys before sleeping for new QMK lifecycle to handle on wake.
 
-    // Visual cue for deep sleep on side LED.
-    pwr_side_led_on();
-    wait_ms(50); // give some time to ensure LED powers on.
-    side_rgb_set_color_all(0x99, 0x00, 0x00);
-    side_rgb_refresh();
-    wait_ms(500);
+    // flash red when deep sleep is about to happen
+    signal_sleep(0x99, 0x00, 0x00);
 
     // Sync again before sleeping. Without this, the wake keystroke is more likely to be lost.
     dev_sts_sync();
@@ -51,6 +56,11 @@ void deep_sleep_handle(void) {
     enter_deep_sleep(); // puts the board in WFI mode and pauses the MCU
     exit_deep_sleep();  // This gets called when there is an interrupt (wake) event.
 
+    // flash white on wake up
+    signal_sleep(0x99, 0x99, 0x99);
+    /* If RF is not connected anymore you would lose the first keystroke.
+       This is expected behavior as the connection is not there.
+    */
     no_act_time = 0; // required to not cause an immediate sleep on first wake
 }
 
@@ -101,7 +111,7 @@ void sleep_handle(void) {
 #endif
         // ryodeushii: if LINK_USB -> light sleep
         if (dev_info.link_mode == LINK_USB) {
-			// JinCao: Don't deep sleep if in USB mode. Board may have issues waking as reported by others. I assume it's being
+            // JinCao: Don't deep sleep if in USB mode. Board may have issues waking as reported by others. I assume it's being
             // powered if USB port is on, or otherwise it's disconnected at the hardware level if USB port is off..
             if (kb_config.usb_sleep_toggle || sleep_now || USB_DRIVER.state == USB_SUSPENDED) {
                 break_all_key();
@@ -114,17 +124,17 @@ void sleep_handle(void) {
             break_all_key();
             enter_light_sleep();
             // otherwise -> deep sleep
-		} else if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
-			break_all_key(); // reset keys before sleeping for new QMK lifecycle to handle on wake.
-			deep_sleep_handle();
+        } else if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
+            break_all_key(); // reset keys before sleeping for new QMK lifecycle to handle on wake.
+            deep_sleep_handle();
             return; // don't need to do anything else
-		} else if (kb_config.sleep_mode == SLEEP_MODE_LIGHT) {
-			break_all_key();
-			enter_light_sleep();
-		}
+        } else if (kb_config.sleep_mode == SLEEP_MODE_LIGHT) {
+            break_all_key();
+            enter_light_sleep();
+        }
 
-		f_wakeup_prepare = 1; // only if light sleep.
-	}
+        f_wakeup_prepare = 1; // only if light sleep.
+    }
 
     // TODO: Original
     //   Was moved to  pre_process_record_kb and exit_light_sleep

@@ -2,7 +2,7 @@ SRC += mcu_pwr.c side.c side_table.c rf.c sleep.c rf_driver.c kb_util.c side_dri
 
 ifeq ($(RIGHT_SIDE_ENABLE), yes)
     SRC += side_right.c
-	OPT_DEFS += -DSIDE_SEPARATE
+    OPT_DEFS += -DSIDE_SEPARATE
 endif
 
 UART_DRIVER_REQUIRED = yes

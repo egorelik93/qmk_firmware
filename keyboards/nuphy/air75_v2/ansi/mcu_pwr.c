@@ -109,11 +109,11 @@ void enter_deep_sleep(void) {
     // TODO: adi4086, commented condition
     //------------------------ RF to sleep
     if (dev_info.rf_state == RF_CONNECT /* && !(dev_info.link_mode == LINK_RF_24 && f_rf_sleep) */)
-        uart_send_cmd(CMD_SET_CONFIG, 5, 5); // 连接状态设置深度休眠时间
+        uart_send_cmd(CMD_SET_CONFIG, 5, 5); // Connection status settings deep sleep time
     else
-        uart_send_cmd(CMD_SLEEP, 5, 5); // 非连接状态直接进入深度休眠
+        uart_send_cmd(CMD_SLEEP, 5, 5); // Directly enter deep sleep when not connected
 
-    //------------------------ 非USB模式下关闭USB
+    //------------------------ Turn off USB in non-USB mode
     // TODO - do we really need to deinitialize USB?
     // Commenting this out for now. It causes USB-C chargers to crash the board on wake apparently.
     // if (dev_info.link_mode != LINK_USB) {
@@ -125,6 +125,7 @@ void enter_deep_sleep(void) {
     // Close timer
     if (tim6_enabled) TIM_Cmd(TIM6, DISABLE);
 
+    //------------------------ Configure key to wake up
     // from @adi4086
     for (int i = 0; i < ARRAY_SIZE(col_pins); i++) {
         gpio_set_pin_output(col_pins[i]);
@@ -241,13 +242,13 @@ void exit_deep_sleep(void) {
     // Reinitialize the system clock
     stm32_clock_init();
 
-    /* TIM6 使能 */
+    /* TIM6 Enable */
     if (tim6_enabled) TIM_Cmd(TIM6, ENABLE);
 
     // 发送一个握手唤醒RF
-	// Should re-init USB regardless probably if it was deinitialized.
+    // Should re-init USB regardless probably if it was deinitialized.
 #if (WORK_MODE == THREE_MODE)
-    uart_send_cmd(CMD_HAND, 0, 1); // 握手
+    uart_send_cmd(CMD_HAND, 0, 1); // Handshake
 #endif
 
     // Should re-init USB regardless probably if it was deinitialized.
