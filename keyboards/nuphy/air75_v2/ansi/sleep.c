@@ -73,6 +73,8 @@ void sleep_handle(void) {
 
     // sleep process;
     if (f_goto_sleep) {
+        bool sleep_now = f_sleep_now;
+
         // reset all counters
         f_goto_sleep         = 0;
         f_sleep_now          = 0;
@@ -85,14 +87,14 @@ void sleep_handle(void) {
         if (dev_info.link_mode == LINK_USB) {
 			// JinCao: Don't deep sleep if in USB mode. Board may have issues waking as reported by others. I assume it's being
             // powered if USB port is on, or otherwise it's disconnected at the hardware level if USB port is off..
-            if (kb_config.usb_sleep_toggle || USB_DRIVER.state == USB_SUSPENDED) {
+            if (kb_config.usb_sleep_toggle || sleep_now || USB_DRIVER.state == USB_SUSPENDED) {
                 break_all_key();
                 enter_light_sleep();
             }
         // if not USB
         // JinCao: don't deep sleep if charging on wireless, charging interrupts and wakes the MCU
         // ryodeushii: but charging -> light sleep
-        } else if (kb_config.sleep_mode != SLEEP_MODE_OFF && ((dev_info.rf_charge & 0x01) != 0 || dev_info.rf_charge == 0x03)) {
+        } else if (kb_config.sleep_mode != SLEEP_MODE_OFF && dev_info.link_mode < LINK_USB && ((dev_info.rf_charge & 0x01) != 0 || dev_info.rf_charge == 0x03)) {
             break_all_key();
             enter_light_sleep();
             // otherwise -> deep sleep
