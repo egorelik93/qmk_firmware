@@ -196,7 +196,8 @@ void side_ws2812_refresh(void) {
 }
 
 // TODO: Do we need  this? Current caller is commented out.
-void signal_sleep(void) {
+//       Prefered a different version in sleep.c
+/*void signal_sleep(void) {
     uint8_t r, g, b;
     r = 0x00; g = 0x00; b = 0x80;
     if (dev_info.link_mode == LINK_RF_24) {
@@ -208,7 +209,7 @@ void signal_sleep(void) {
     side_ws2812_set_color_strip(LEFT_SIDE + RIGHT_SIDE, r, g, b);
     side_ws2812_refresh();
     wait_ms(140);
-}
+}*/
 
 /**
  * @brief  Adjusting the brightness of side lights.
