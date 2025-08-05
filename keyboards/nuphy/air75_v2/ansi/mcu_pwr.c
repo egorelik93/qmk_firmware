@@ -246,7 +246,7 @@ void exit_deep_sleep(void) {
     if (tim6_enabled) TIM_Cmd(TIM6, ENABLE);
 
     // 发送一个握手唤醒RF
-	// Should re-init USB regardless probably if it was deinitialized.
+    // Should re-init USB regardless probably if it was deinitialized.
 #if (WORK_MODE == THREE_MODE)
     uart_send_cmd(CMD_HAND, 0, 1); // Handshake
 #endif

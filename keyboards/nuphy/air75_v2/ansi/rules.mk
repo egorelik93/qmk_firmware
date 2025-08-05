@@ -4,7 +4,7 @@ RIGHT_SIDE_ENABLE ?= yes
 
 ifeq ($(RIGHT_SIDE_ENABLE), yes)
     SRC += side_right.c
-	OPT_DEFS += -DSIDE_SEPARATE
+    OPT_DEFS += -DSIDE_SEPARATE
 endif
 
 UART_DRIVER_REQUIRED = yes

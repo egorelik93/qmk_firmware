@@ -108,7 +108,7 @@ void sleep_handle(void) {
 #endif
         // ryodeushii: if LINK_USB -> light sleep
         if (dev_info.link_mode == LINK_USB) {
-			// JinCao: Don't deep sleep if in USB mode. Board may have issues waking as reported by others. I assume it's being
+            // JinCao: Don't deep sleep if in USB mode. Board may have issues waking as reported by others. I assume it's being
             // powered if USB port is on, or otherwise it's disconnected at the hardware level if USB port is off..
             if (kb_config.usb_sleep_toggle || USB_DRIVER.state == USB_SUSPENDED) {
                 break_all_key();
@@ -121,17 +121,17 @@ void sleep_handle(void) {
             break_all_key();
             enter_light_sleep();
             // otherwise -> deep sleep
-		} else if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
-			break_all_key(); // reset keys before sleeping for new QMK lifecycle to handle on wake.
-			deep_sleep_handle();
+        } else if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
+            break_all_key(); // reset keys before sleeping for new QMK lifecycle to handle on wake.
+            deep_sleep_handle();
             return; // don't need to do anything else
-		} else if (kb_config.sleep_mode == SLEEP_MODE_LIGHT) {
-			break_all_key();
-			enter_light_sleep();
-		}
+        } else if (kb_config.sleep_mode == SLEEP_MODE_LIGHT) {
+            break_all_key();
+            enter_light_sleep();
+        }
 
-		f_wakeup_prepare = 1; // only if light sleep.
-	}
+        f_wakeup_prepare = 1; // only if light sleep.
+    }
 
     // TODO: Original
     // wakeup check
