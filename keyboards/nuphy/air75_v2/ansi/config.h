@@ -25,6 +25,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define THREE_MODE 1
 #define WORK_MODE THREE_MODE
 
+#define EEPROM_SAVE_DELAY_TIME 10
+
 #if !defined(NO_DEBUG) && !defined(CONSOLE_ENABLE)
 #define NO_DEBUG
 #endif // !NO_DEBUG

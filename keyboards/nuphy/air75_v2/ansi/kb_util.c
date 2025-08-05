@@ -580,7 +580,7 @@ void delay_update_eeprom_data(void) {
         if (user_update || rgb_update) { eeprom_update_timer = timer_read32(); }
         return;
     }
-    if (timer_elapsed32(eeprom_update_timer) < (1000 * 30)) { return; }
+    if (timer_elapsed32(eeprom_update_timer) < (1000 * EEPROM_SAVE_DELAY_TIME)) { return; }
     if (user_update) {
         save_config_to_eeprom_now();
     }
