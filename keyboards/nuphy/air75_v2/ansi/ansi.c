@@ -979,12 +979,15 @@ void keyboard_post_init_kb(void) {
 
     reset_led_idx();
 
-/*#ifndef NO_DEBUG
+    // This is necessary because config.h turned DEBUG_MATRIX_SCAN_RATE on,
+    // but this automatically turns debug_enable on, which isn't what we want.
+#ifndef NO_DEBUG
     debug_enable   = false;
     // debug_matrix   = true;
     // debug_keyboard = true;
     // debug_mouse    = true;
-#endif*/
+#endif
+
     // TODO
     interrupt_source_init();
 
