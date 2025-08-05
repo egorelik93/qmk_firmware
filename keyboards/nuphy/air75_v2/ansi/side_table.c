@@ -336,3 +336,20 @@ const uint8_t bat_percent_tab[6][3] = {
     {0x66, 0xff, 0x00},
     {0x00, 0xff, 0x00},
 };
+
+// TODO: From adi. Probably unnecessary, but keeping for reference.
+/*
+static uint8_t breathe_data(uint8_t step) {
+    uint8_t value     = 0;
+    uint8_t adjust    = 8;
+    uint8_t max_value = BREATHE_TAB_LEN - 1;
+    if (step < max_value / 2) {
+        value = ((step * adjust / 21) * step) / adjust + step;
+    } else if (step  < BREATHE_TAB_LEN / 2  + 1) {
+        value = 255;
+    } else {
+        value = ((((max_value - step) * adjust) / 21) * (max_value - step)) / adjust + (max_value - step);
+    }
+    return value;
+}
+*/

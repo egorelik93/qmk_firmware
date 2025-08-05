@@ -20,8 +20,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "mcu_stm32f0xx.h"
 #include "mcu_pwr.h"
 #include "rgb_matrix.h"
+#include "ws2812_driver.h"
+#include "hal_usb.h"
+#include "usb_main.h"
+#include "hal_lld.h"
 
 // from @adi4086
+// Pin definitions
 static const pin_t row_pins[MATRIX_ROWS] = MATRIX_ROW_PINS;
 static const pin_t col_pins[MATRIX_COLS] = MATRIX_COL_PINS;
 
@@ -35,6 +40,7 @@ static bool sleeping             = false;
 static bool side_led_powered_off = 0;
 static bool rgb_led_powered_off  = 0;
 static bool tim6_enabled         = false;
+static uint16_t sleep_count      = 0;
 
 static bool rgb_led_on  = 0;
 static bool side_led_on = 0;
@@ -45,21 +51,27 @@ void side_rgb_set_color_all(uint8_t r, uint8_t g, uint8_t b);
 void rgb_matrix_update_pwm_buffers(void);
 
 /** ================================================================
- * @brief   关闭USB
+ * @brief   Turn off USB
  *
  ================================================================*/
 void m_deinit_usb_072(void) {
     GPIO_InitTypeDef GPIO_InitStructure = {0};
 
-    // 复位USB寄存器
+#if (0)
+    // call qmk library to turn off USB
+    void close_usb(void);
+    close_usb();
+#endif
+
+    // Reset USB register
     RCC_APB1PeriphResetCmd(RCC_APB1RSTR_USBRST, ENABLE);
     RCC_APB1PeriphResetCmd(RCC_APB1RSTR_USBRST, DISABLE);
     wait_ms(10);
 
-    // 关闭USB时钟
+    // Turn off USB clock
     RCC_APB1PeriphClockCmd(RCC_APB1ENR_USBEN, DISABLE);
 
-    // GPIO恢复为悬浮状态
+    // GPIO to suspended state
     GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_11 | GPIO_Pin_12;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
     GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
@@ -67,11 +79,9 @@ void m_deinit_usb_072(void) {
 }
 
 /** ================================================================
- * @brief   低功耗处理
+ * @brief   Low Power mode
  *
  ================================================================*/
-#include "hal_usb.h"
-#include "usb_main.h"
 void SYSCFG_EXTILineConfig(uint8_t EXTI_PortSourceGPIOx, uint8_t EXTI_PinSourcex) {
     uint32_t tmp = 0x00;
 
@@ -80,21 +90,25 @@ void SYSCFG_EXTILineConfig(uint8_t EXTI_PortSourceGPIOx, uint8_t EXTI_PinSourcex
     SYSCFG->EXTICR[EXTI_PinSourcex >> 0x02] |= (((uint32_t)EXTI_PortSourceGPIOx) << (0x04 * (EXTI_PinSourcex & (uint8_t)0x03)));
 }
 
-#include "hal_lld.h"
 #define EXTI_PortSourceGPIOA ((uint8_t)0x00)
 #define EXTI_PortSourceGPIOB ((uint8_t)0x01)
 #define EXTI_PortSourceGPIOC ((uint8_t)0x02)
 #define EXTI_PortSourceGPIOD ((uint8_t)0x03)
 
-#include "usb_main.h"
 /**
  * @brief  Enter deep sleep
  * @note This is Nuphy's un-released logic with some cleanup/refactoring
  *       The MCU is put on a low power mode.
  */
 void enter_deep_sleep(void) {
-    //------------------------ 设置RF休眠状态
-    if (dev_info.rf_state == RF_CONNECT)
+    //
+    //------------------------ preventive restart
+    sleep_count += 1;
+    if (sleep_count > 100) { soft_reset_keyboard(); }
+
+    // TODO: adi4086, commented condition
+    //------------------------ RF to sleep
+    if (dev_info.rf_state == RF_CONNECT /* && !(dev_info.link_mode == LINK_RF_24 && f_rf_sleep) */)
         uart_send_cmd(CMD_SET_CONFIG, 5, 5); // 连接状态设置深度休眠时间
     else
         uart_send_cmd(CMD_SLEEP, 5, 5); // 非连接状态直接进入深度休眠
@@ -107,7 +121,8 @@ void enter_deep_sleep(void) {
     //     m_deinit_usb_072(); // 关闭USB
     // }
 
-    // 关闭定时器
+#if !defined(DISABLE_MCU_SLEEP)
+    // Close timer
     if (tim6_enabled) TIM_Cmd(TIM6, DISABLE);
 
     // from @adi4086
@@ -120,6 +135,39 @@ void enter_deep_sleep(void) {
         gpio_set_pin_input_low(row_pins[i]);
     }
 
+    // Configure interrupt source - all 5 rows of the keyboard.
+    interrupt_source_init();
+
+    led_pwr_sleep_handle();
+
+    gpio_set_pin_output_push_pull(DEV_MODE_PIN);
+    gpio_write_pin_low(DEV_MODE_PIN);
+
+    gpio_set_pin_output_push_pull(SYS_MODE_PIN);
+    gpio_write_pin_low(SYS_MODE_PIN);
+
+    // These should be LED pins as well, turning them off.
+    gpio_set_pin_output_push_pull(A7);
+    gpio_write_pin_low(A7);
+    gpio_set_pin_output_push_pull(DRIVER_SIDE_PIN);
+    gpio_write_pin_low(DRIVER_SIDE_PIN);
+
+    gpio_set_pin_output(NRF_TEST_PIN);
+    gpio_write_pin_high(NRF_TEST_PIN);
+
+    // TODO: JinCao has these as output/high, and ryodeushii as input/low
+    gpio_set_pin_output(NRF_WAKEUP_PIN);
+    gpio_write_pin_high(NRF_WAKEUP_PIN);
+
+    //clear_report_buffer_and_queue();
+    break_all_key();
+
+    // Enter low power mode and wait for interrupt signal
+    PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);
+#endif
+}
+
+void interrupt_source_init(void) {
     // Configure interrupt source - all 5 rows of the keyboard.
     SYSCFG_EXTILineConfig(EXTI_PORT_R0, EXTI_PIN_R0);
     SYSCFG_EXTILineConfig(EXTI_PORT_R1, EXTI_PIN_R1);
@@ -145,32 +193,13 @@ void enter_deep_sleep(void) {
     NVIC_Init(&NVIC_InitStructure);
     NVIC_InitStructure.NVIC_IRQChannel = EXTI2_3_IRQn;
     NVIC_Init(&NVIC_InitStructure);
+}
 
-    led_pwr_sleep_handle();
-
-    gpio_set_pin_output(DEV_MODE_PIN);
-    gpio_write_pin_low(DEV_MODE_PIN);
-
-    gpio_set_pin_output(SYS_MODE_PIN);
-    gpio_write_pin_low(SYS_MODE_PIN);
-
-    // These should be LED pins as well, turning them off.
-    gpio_set_pin_output(A7);
-    gpio_write_pin_low(A7);
-    gpio_set_pin_output(DRIVER_SIDE_PIN);
-    gpio_write_pin_low(DRIVER_SIDE_PIN);
-
-    gpio_set_pin_output(NRF_TEST_PIN);
-    gpio_write_pin_high(NRF_TEST_PIN);
-
-    // TODO: JinCao has these as output/high, and ryodeushii as input/low
-    gpio_set_pin_output(NRF_WAKEUP_PIN);
-    gpio_write_pin_high(NRF_WAKEUP_PIN);
-
-    clear_report_buffer_and_queue();
-
-    // Enter low power mode and wait for interrupt signal
-    PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);
+void matrix_scan_repeat(uint8_t repeat) {
+    do {
+        NOP_WAIT;
+        matrix_scan();
+    } while (repeat--);
 }
 
 /**
@@ -180,7 +209,7 @@ void enter_deep_sleep(void) {
  */
 void exit_deep_sleep(void) {
     // JinCao version
-    // 矩阵初始化
+    // Matrix initialization & Scan
     /*extern void matrix_init_pins(void);
     matrix_init_pins();*/
 
@@ -188,7 +217,12 @@ void exit_deep_sleep(void) {
     extern void matrix_init_custom(void);
     matrix_init_custom();
 
-    // 恢复IO工作状态
+    // TODO: adi
+    clear_report_buffer_and_queue();
+    matrix_scan_repeat(2);
+
+#if !defined(DISABLE_MCU_SLEEP)
+    // Restore IO to working status
 #if (WORK_MODE == THREE_MODE)
     gpio_set_pin_input_high(DEV_MODE_PIN); // PC0
 #endif
@@ -204,7 +238,7 @@ void exit_deep_sleep(void) {
     // power on LEDs This is missing from Nuphy's logic.
     led_pwr_wake_handle();
 
-    // 重新初始化系统时钟
+    // Reinitialize the system clock
     stm32_clock_init();
 
     /* TIM6 使能 */
@@ -241,6 +275,13 @@ void exit_deep_sleep(void) {
 
     // flag for RF wakeup workload.
     dev_info.rf_state = RF_WAKE;
+
+    // TODO: adi
+    /*// Flag for RF state.
+    dev_info.rf_state = RF_LINKING;
+    rf_disconnect_delay = UINT8_MAX;
+    rf_linking_time     = 0;*/
+#endif
 }
 
 /**
@@ -251,7 +292,8 @@ void enter_light_sleep(void) {
 #if (WORK_MODE == THREE_MODE)
     dev_sts_sync();
 
-    if (dev_info.rf_state == RF_CONNECT)
+    // TODO: adi, commented condition
+    if (dev_info.rf_state == RF_CONNECT /* && !(dev_info.link_mode == LINK_RF_24 && f_rf_sleep) */)
         uart_send_cmd(CMD_SET_CONFIG, 5, 5);
     else
         uart_send_cmd(CMD_SLEEP, 5, 5);
@@ -336,6 +378,9 @@ void pwr_rgb_led_off(void) {
     gpio_set_pin_input(DRIVER_LED_CS_PIN);
     wait_us(200); // sleep a bit to ensure LEDs power properly?
     rgb_led_on = 0;
+#if !defined(NO_DEBUG)
+    dprint("RGB LED State: OFF\n");
+#endif
 }
 
 void pwr_rgb_led_on(void) {
@@ -348,6 +393,12 @@ void pwr_rgb_led_on(void) {
     gpio_write_pin_low(DRIVER_LED_CS_PIN);
     wait_us(200); // sleep a bit to ensure LEDs power properly?
     rgb_led_on = 1;
+    // TODO: adi
+    /*    rgb_matrix_set_color(RGB_MATRIX_LED_COUNT, 1, 1, 1);*/
+    flush_rgb_leds = true;
+#if !defined(NO_DEBUG)
+    dprint("RGB LED State: ON\n");
+#endif
 }
 
 void pwr_side_led_off(void) {
@@ -355,15 +406,22 @@ void pwr_side_led_off(void) {
     gpio_set_pin_input(DRIVER_SIDE_CS_PIN);
     wait_us(200); // sleep a bit to ensure LEDs power properly?
     side_led_on = 0;
+#if !defined(NO_DEBUG)
+    dprint("SIDE LED State: OFF\n");
+#endif
 }
 
 void pwr_side_led_on(void) {
     if (sleeping || side_led_on) return;
-    // if (side_led_on) return;
+    if (side_led_on) return;
     gpio_set_pin_output_push_pull(DRIVER_SIDE_CS_PIN);
     gpio_write_pin_low(DRIVER_SIDE_CS_PIN);
     wait_us(200); // sleep a bit to ensure LEDs power properly?
     side_led_on = 1;
+    flush_side_leds = true;
+#if !defined(NO_DEBUG)
+    dprint("SIDE LED State: ON\n");
+#endif
 }
 
 bool is_rgb_led_on(void) {
@@ -469,13 +527,13 @@ void mcu_timer6_init(void) {
     /* TIM6 clock enable */
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
 
-    /*  TIM6 中断嵌套设计*/
+    /* TIM6 interrupt design */
     NVIC_InitStructure.NVIC_IRQChannel         = TIM6_IRQn;
     NVIC_InitStructure.NVIC_IRQChannelPriority = 0;
     NVIC_InitStructure.NVIC_IRQChannelCmd      = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
 
-    /* Time 定时器基础设置 */
+    /* Time Basic timer settings */
     /* This configuration results in 1ms intervals: https://deepbluembedded.com/stm32-timer-interrupt-hal-example-timer-mode-lab/
        Tout = (ARR + 1)(PSC + 1) / Fclk (48mhz for STM32F072)
        0.001 = (1000)(48)/(48_000_000) = 1ms
@@ -488,7 +546,7 @@ void mcu_timer6_init(void) {
 
     TIM_ITConfig(TIM6, TIM_IT_Update, ENABLE);
 
-    /* TIM6 使能 */
+    /* TIM6 enable */
     TIM_Cmd(TIM6, ENABLE);
 
     tim6_enabled = true;
@@ -509,6 +567,8 @@ OSAL_IRQ_HANDLER(STM32_TIM6_HANDLER) {
 // For this to work you need to call m_timer6_init() in ansi.c post kb init user.
 // That enables the STM32_TIM6_HANDLER but I think it runs on the interrupt interval of the TIM6 timer.
 void idle_enter_sleep(void) {
+    // TODO: adi
+    // if (no_act_time < 1000 || user_config.sleep_mode != 1) { return; }
     TIM6->CNT      = 0;
     idle_sleep_cnt = 0;
     while (idle_sleep_cnt < 1) {

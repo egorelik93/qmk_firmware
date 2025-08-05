@@ -31,10 +31,21 @@ static bool                matrix_need_update;
 static bool                cooked_changed;
 
 static void update_debounce_counters_and_transfer_if_expired(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, uint8_t elapsed_time);
+// static void update_debounce_counters(uint8_t num_rows, uint8_t elapsed_time);
 static void transfer_matrix_values(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows);
+
+// TODO
+void early_user_debounce_init(void) {
+    if (kb_config.debounce_press_ms != 0 || kb_config.debounce_release_ms) { return; }
+    //kb_config.debounce_type = 1;
+    kb_config.debounce_press_ms = DEBOUNCE;
+    kb_config.debounce_release_ms = RELEASE_DEBOUNCE;
+}
 
 // we use num_rows rather than MATRIX_ROWS to support split keyboards
 void debounce_init(uint8_t num_rows) {
+    // early_user_debounce_init();
+
     debounce_counters = malloc(num_rows * MATRIX_COLS * sizeof(debounce_counter_t));
     int i             = 0;
     for (uint8_t r = 0; r < num_rows; r++) {
@@ -64,7 +75,12 @@ bool debounce(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, bool 
         }
 
         if (elapsed_time > 0) {
-            update_debounce_counters_and_transfer_if_expired(raw, cooked, num_rows, elapsed_time);
+            // TODO: adi
+            /*if (kb_config.debounce_type == 2) {
+                update_debounce_counters(num_rows, elapsed_time);
+            } else*/ {
+                update_debounce_counters_and_transfer_if_expired(raw, cooked, num_rows, elapsed_time);
+            }
         }
     }
 
@@ -78,6 +94,28 @@ bool debounce(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, bool 
 
     return cooked_changed;
 }
+
+// TODO: adi
+/*
+// If the current time is > debounce counter, set the counter to enable input.
+static void update_debounce_counters(uint8_t num_rows, uint8_t elapsed_time) {
+    counters_need_update                 = false;
+    matrix_need_update                   = false;
+    debounce_counter_t *debounce_pointer = debounce_counters;
+    for (uint8_t row = 0; row < num_rows; row++) {
+        if (debounce_pointer->time != DEBOUNCE_ELAPSED) {
+            if (debounce_pointer->time <= elapsed_time) {
+                debounce_pointer->time  = DEBOUNCE_ELAPSED;
+                matrix_need_update = true;
+            } else {
+                debounce_pointer->time -= elapsed_time;
+                counters_need_update = true;
+            }
+        }
+        debounce_pointer++;
+    }
+}
+*/
 
 static void update_debounce_counters_and_transfer_if_expired(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, uint8_t elapsed_time) {
     debounce_counter_t *debounce_pointer = debounce_counters;
@@ -118,6 +156,28 @@ static void transfer_matrix_values(matrix_row_t raw[], matrix_row_t cooked[], ui
     matrix_need_update = false;
 
     for (uint8_t row = 0; row < num_rows; row++) {
+        // TODO: adi
+        /*if (kb_config.debounce_type == 2) {
+            matrix_row_t existing_row = cooked[row];
+            matrix_row_t raw_row      = raw[row];
+
+            // determine new value basd on debounce pointer + raw value
+            if (existing_row != raw_row) {
+                if (debounce_pointer->time == DEBOUNCE_ELAPSED) {
+                    if (debounce_pointer->pressed) {
+                        debounce_pointer->time = kb_config.debounce_press_ms;
+                    } else {
+                        debounce_pointer->time = kb_config.debounce_release_ms;
+                    }
+                    cooked_changed |= cooked[row] ^ raw_row;
+                    cooked[row]          = raw_row;
+                    counters_need_update = true;
+                }
+            }
+            debounce_pointer++;
+            continue;
+        }*/
+
         matrix_row_t delta = raw[row] ^ cooked[row];
         for (uint8_t col = 0; col < MATRIX_COLS; col++) {
             matrix_row_t col_mask = (ROW_SHIFTER << col);
@@ -128,17 +188,23 @@ static void transfer_matrix_values(matrix_row_t raw[], matrix_row_t cooked[], ui
                     // debounce_pointer->time    = kb_config.debounce_press_ms; // FIXME: original place of debounce
                     counters_need_update = true;
 
-                    if (debounce_pointer->pressed) {
-                        // key-down: eager
-                        cooked[row] ^= col_mask;
-                        cooked_changed         = true;
-                        debounce_pointer->time = kb_config.debounce_press_ms;
-                    } else {
-                        debounce_pointer->time = kb_config.debounce_release_ms;
-                    }
+                    // TODO: adi
+                    //if (kb_config.debounce_type) {
+                        if (debounce_pointer->pressed) {
+                            // key-down: eager
+                            cooked[row] ^= col_mask;
+                            cooked_changed         = true;
+                            debounce_pointer->time = kb_config.debounce_press_ms;
+                        } else {
+                            debounce_pointer->time = kb_config.debounce_release_ms;
+                        }
+                    //}
                 }
             } else if (debounce_pointer->time != DEBOUNCE_ELAPSED) {
-                if (!debounce_pointer->pressed) {
+                // TODO: adi
+                /*if (kb_config.debounce_type == 0) {
+                    debounce_pointer->time = DEBOUNCE_ELAPSED;
+                } else */ if (!debounce_pointer->pressed) {
                     // key-up: defer
                     debounce_pointer->time = DEBOUNCE_ELAPSED;
                 }

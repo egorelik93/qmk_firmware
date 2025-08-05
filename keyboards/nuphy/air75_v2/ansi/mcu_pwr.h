@@ -17,12 +17,43 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
+// key matrix pins
+/*
+#define KROW_0                   C14
+#define KROW_1                   C15
+#define KROW_2                   A0
+#define KROW_3                   A1
+#define KROW_4                   A2
+#define KROW_5                   A3
+*/
+
 #define EXTI_PORT_R0             EXTI_PortSourceGPIOC
 #define EXTI_PORT_R1             EXTI_PortSourceGPIOC
 #define EXTI_PORT_R2             EXTI_PortSourceGPIOA
 #define EXTI_PORT_R3             EXTI_PortSourceGPIOA
 #define EXTI_PORT_R4             EXTI_PortSourceGPIOA
 #define EXTI_PORT_R5             EXTI_PortSourceGPIOA
+
+//------------------------
+/*
+#define KCOL_0                   A4
+#define KCOL_1                   A5
+#define KCOL_2                   A6
+#define KCOL_3                   B9
+#define KCOL_4                   B0
+#define KCOL_5                   B1
+#define KCOL_6                   B10
+#define KCOL_7                   B11
+#define KCOL_8                   B12
+#define KCOL_9                   B13
+#define KCOL_10                  B14
+#define KCOL_11                  B15
+#define KCOL_12                  A8
+#define KCOL_13                  A9
+#define KCOL_14                  A10
+#define KCOL_15                  A15
+#define KCOL_16                  B3
+*/
 
 #define EXTI_PIN_R0              14  // C14
 #define EXTI_PIN_R1              15  // C15
@@ -83,3 +114,10 @@ bool is_side_led_on(void);
 
 void led_pwr_sleep_handle(void);
 void led_pwr_wake_handle(void);
+
+void m_uart_gpio_set_low_speed(void);
+
+void mcu_timer6_init(void);
+void idle_enter_sleep(void);
+
+void interrupt_source_init(void);

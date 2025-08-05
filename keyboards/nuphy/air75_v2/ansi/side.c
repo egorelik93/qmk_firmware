@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "side.h"
 #include <stdint.h>
+#include "config.h"
 #include "kb_util.h"
 #include "ansi.h"
 #include "color.h"
@@ -31,10 +32,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // clang-format on
 
+// TODO
+uint8_t  low_bat_level        = 15; // 20
+
+// TODO
+uint8_t  sys_light            = 3;
+
 bool    flush_side_leds = false;
 uint8_t side_play_point = 0;
 
-uint8_t   r_temp, g_temp, b_temp;
+rgb_t current_rgb = {.r = 0x00, .g = 0x00, .b = 0x00};
 rgb_led_t side_leds[SIDE_LED_NUM] = {0};
 
 bool f_charging = 1;
@@ -42,10 +49,16 @@ bool f_charging = 1;
 uint8_t low_bat_blink_cnt = 6;
 bool    do_refresh        = false;
 
+uint8_t  rgb_color            = 0;
+uint8_t  rgb_start_led        = 0;
+uint8_t  rgb_end_led          = 0;
+uint32_t rgb_show_time        = 0;
+uint32_t rgb_indicator_timer  = 0;
+
 #define LEFT_LED_TOP(i) i
 #define RIGHT_LED_TOP(i) (11 - i)
 
-#if RF_SIDE == SIDE_LEFT
+#if RF_SIDE == LEFT_SIDE
     #define RF_SIDE_TOP(i) LEFT_LED_TOP(i)
     #define SET_RF_SIDE_RGB set_left_rgb
 #else
@@ -53,7 +66,7 @@ bool    do_refresh        = false;
     #define SET_RF_SIDE_RGB set_right_rgb
 #endif
 
-#if BAT_SIDE == SIDE_LEFT
+#if BAT_SIDE == LEFT_SIDE
     #define BAT_SIDE_TOP(i) LEFT_LED_TOP(i)
     #define SET_BAT_SIDE_RGB set_left_rgb
 #else
@@ -61,13 +74,17 @@ bool    do_refresh        = false;
     #define SET_BAT_SIDE_RGB set_right_rgb
 #endif
 
-#if SYS_SIDE == SIDE_LEFT
+#if SYS_SIDE == LEFT_SIDE
     #define SYSTEM_SIDE_TOP(i) i
     #define SET_SYS_SIDE_RGB set_left_rgb
 #else
     #define SYSTEM_SIDE_TOP(i) (11 - i)
     #define SET_SYS_SIDE_RGB set_right_rgb
 #endif
+
+#define r_temp current_rgb.r
+#define g_temp current_rgb.g
+#define b_temp current_rgb.b
 
 void side_ws2812_setleds(rgb_led_t *ledarray, uint16_t leds);
 void rgb_matrix_update_pwm_buffers(void);
@@ -89,6 +106,11 @@ bool is_side_rgb_off(void) {
     return true;
 }
 
+// TODO
+bool is_side_ws2812_off(void) {
+    return is_side_rgb_off();
+}
+
 /**
  * @brief  side leds set color value.
  * @param  i: index of side_leds[].
@@ -102,6 +124,11 @@ void side_rgb_set_color(int i, uint8_t r, uint8_t g, uint8_t b) {
     side_leds[i].r = r;
     side_leds[i].g = g;
     side_leds[i].b = b;
+}
+
+// TODO
+void side_ws2812_set_color(int i, uint8_t r, uint8_t g, uint8_t b) {
+    side_rgb_set_color(i, r, g, b);
 }
 
 /**
@@ -129,6 +156,26 @@ void side_rgb_set_color_right(uint8_t r, uint8_t g, uint8_t b) {
     }
 }
 
+// TODO
+void side_ws2812_set_color_strip(uint8_t side, uint8_t r, uint8_t g, uint8_t b) {
+    // side = 1 => left
+    // side = 2 => right
+    // side = 3 => both
+    uint8_t start = 0;
+    uint8_t end   = SIDE_LED_NUM;
+    if (side == LEFT_SIDE)  { end = end - SIDE_LINE; }
+    if (side == RIGHT_SIDE) { start = start + SIDE_LINE; }
+
+    for (uint8_t i = start; i < end; i++) {
+        side_ws2812_set_color(i, r, g, b);
+    }
+}
+
+void clear_rgb(void) {
+    rgb_matrix_set_color_all(RGB_OFF);
+    rgb_matrix_update_pwm_buffers();
+}
+
 /**
  * @brief  refresh side leds.
  */
@@ -143,9 +190,29 @@ void side_rgb_refresh(void) {
     flush_side_leds = false;
 }
 
+// TODO
+void side_ws2812_refresh(void) {
+    side_rgb_refresh();
+}
+
+// TODO: Do we need  this? Current caller is commented out.
+void signal_sleep(void) {
+    uint8_t r, g, b;
+    r = 0x00; g = 0x00; b = 0x80;
+    if (dev_info.link_mode == LINK_RF_24) {
+        g = 0x80;
+        b = 0x00;
+    }
+    pwr_side_led_on();
+    wait_ms(10);
+    side_ws2812_set_color_strip(LEFT_SIDE + RIGHT_SIDE, r, g, b);
+    side_ws2812_refresh();
+    wait_ms(140);
+}
+
 /**
  * @brief  Adjusting the brightness of side lights.
- * @param  dir: 0 - decrease, 1 - increase.
+ * @param  bright: 0 - decrease, 1 - increase.
  * @note  save to eeprom.
  */
 void side_light_control(uint8_t dir) {
@@ -161,11 +228,15 @@ void side_light_control(uint8_t dir) {
         kb_config.side_light--;
     }
     save_config_to_eeprom();
+
+    #ifndef NO_DEBUG
+        dprintf("side matrix light_control [NOEEPROM]: %d\n", kb_config.side_light);
+    #endif
 }
 
 /**
  * @brief  Adjusting the speed of side lights.
- * @param  dir: 0 - decrease, 1 - increase.
+ * @param  fast: 0 - decrease, 1 - increase.
  * @note  save to eeprom.
  */
 void side_speed_control(uint8_t dir) {
@@ -181,11 +252,14 @@ void side_speed_control(uint8_t dir) {
         kb_config.side_speed++;
     }
     save_config_to_eeprom();
+#ifndef NO_DEBUG
+    dprintf("side matrix speed_control [NOEEPROM]: %d\n", kb_config.side_speed);
+#endif
 }
 
 /**
  * @brief  Switch to the next color of side lights.
- * @param  dir: 0 - prev, 1 - next.
+ * @param  color: 0 - prev, 1 - next.
  * @note  save to eeprom.
  */
 void side_colour_control(uint8_t dir) {
@@ -198,12 +272,12 @@ void side_colour_control(uint8_t dir) {
     if (dir) {
         if (kb_config.side_rgb) {
             kb_config.side_rgb    = 0;
-            kb_config.side_colour = 0;
+            kb_config.side_colour = game_mode_enable; // 0
         } else {
             kb_config.side_colour++;
             if (kb_config.side_colour >= SIDE_COLOUR_MAX) {
                 kb_config.side_rgb    = 1;
-                kb_config.side_colour = 0;
+                kb_config.side_colour = game_mode_enable; // 0
             }
         }
     } else {
@@ -214,11 +288,14 @@ void side_colour_control(uint8_t dir) {
             kb_config.side_colour--;
             if (kb_config.side_colour >= SIDE_COLOUR_MAX) {
                 kb_config.side_rgb    = 1;
-                kb_config.side_colour = 0;
+                kb_config.side_colour = game_mode_enable; // 0
             }
         }
     }
     save_config_to_eeprom();
+#ifndef NO_DEBUG
+    dprintf("side matrix colour_control [NOEEPROM]: %d rgb: %d\n", kb_config.side_colour, kb_config.side_rgb);
+#endif
 }
 
 /**
@@ -241,6 +318,9 @@ void side_mode_control(uint8_t dir) {
     }
     side_play_point = 0;
     save_config_to_eeprom();
+#ifndef NO_DEBUG
+    dprintf("side matrix mode_control [NOEEPROM]: %d\n", kb_config.side_mode);
+#endif
 }
 
 /**
@@ -258,7 +338,16 @@ void side_rgb_brightness(uint8_t light_temp) {
 
     temp   = (light_temp)*b_temp + b_temp;
     b_temp = temp >> 8;
+
 }
+
+// TODO
+/*void set_sys_light(void) {
+    sys_light = kb_config.side_light > 5 ? 1 : (3 - kb_config.side_light / 2);
+    current_rgb.r = current_rgb.r / sys_light;
+    current_rgb.g = current_rgb.g / sys_light;
+    current_rgb.b = current_rgb.b / sys_light;
+}*/
 
 /**
  * @brief  set left side leds.
@@ -440,6 +529,13 @@ void sys_led_show(void) {
                 break;
         }
     }
+
+    // TODO
+    /*if (kb_config.numlock_state == 1 && host_keyboard_led_state().num_lock) {
+        current_rgb.r = 0x80, current_rgb.g = 0x80, current_rgb.b = 0x80;
+        set_sys_light();
+        side_ws2812_set_color_strip(led_side, current_rgb.r, current_rgb.g, current_rgb.b);
+    }*/
 }
 
 /**
@@ -452,12 +548,14 @@ void sys_led_show(void) {
 void light_point_playing(uint8_t trend, uint8_t step, uint8_t len, uint8_t *point) {
     if (trend) {
         *point += step;
-        if (*point >= len) {
+        if (*point > 254 && len == 0) { *point = 0; }
+        else if (*point >= len) {
             *point -= len;
         }
     } else {
         *point -= step;
-        if (*point >= len) {
+        if (*point < 1 && len == 0) { *point = 255; }
+        else if (*point >= len) {
             *point = len - (255 - *point) - 1;
         }
     }
@@ -469,7 +567,7 @@ void light_point_playing(uint8_t trend, uint8_t step, uint8_t len, uint8_t *poin
 static void side_wave_mode_show(void) {
     uint8_t play_index;
     if (kb_config.side_rgb) {
-        // TODO: Original is 3, ryodeushii set to 1
+        // TODO: Original is 3, ryodeushii set to 1, adi 6
         light_point_playing(0, 1, FLOW_COLOUR_TAB_LEN, &side_play_point);
     } else {
         light_point_playing(0, 2, WAVE_TAB_LEN, &side_play_point);
@@ -482,7 +580,7 @@ static void side_wave_mode_show(void) {
             g_temp = flow_rainbow_colour_tab[play_index][1];
             b_temp = flow_rainbow_colour_tab[play_index][2];
 
-            // Original uses 24, ryodeushii 8
+            // Original uses 24, ryodeushii 8, adi 32
             light_point_playing(1, 24, FLOW_COLOUR_TAB_LEN, &play_index);
         } else {
             r_temp = colour_lib[kb_config.side_colour][0];
@@ -603,6 +701,9 @@ void bat_charging_design(uint8_t init, uint8_t r, uint8_t g, uint8_t b) {
             show_mask |= 1;
             if (show_mask == 0x7f) f_move_trend = 1;
         }
+
+        // TODO: adi
+        // side_ws2812_set_color_strip(my_side, RGB_OFF);
     }
 
     for (i = 0; i < SIDE_LINE; i++) {
@@ -714,6 +815,18 @@ void rf_led_show(void) {
     } else if (rf_link_show_time < RF_LINK_SHOW_TIME) {
         SET_RF_SIDE_RGB(r_temp, g_temp, b_temp, true);
     }
+
+    // light up corresponding BT/RF key
+    /*if (dev_info.link_mode <= LINK_BT_3) {
+        uint8_t my_pos = dev_info.link_mode == LINK_RF_24 ? 4 : dev_info.link_mode;
+        if (rf_link_show_time > RF_LINK_SHOW_TIME - 10) {
+            rgb_matrix_set_color(led_idx.KC_GRV - my_pos, RGB_OFF);
+        } else {
+            uint8_t my_pos = dev_info.link_mode == LINK_RF_24 ? 4 : dev_info.link_mode;
+            rgb_required = 1;
+            rgb_matrix_set_color(led_idx.KC_GRV - my_pos, current_rgb.r, current_rgb.g, current_rgb.b);
+        }
+    }*/
 }
 
 void low_bat_show(void) {
@@ -817,6 +930,7 @@ void bat_percent_led(uint8_t bat_percent) {
     }
 }
 
+
 /**
  * @brief  bat_led_show.
  */
@@ -839,6 +953,13 @@ void bat_led_show(void) {
         f_init        = 0;
         bat_show_time = timer_read32();
         charge_state  = dev_info.rf_charge;
+    }
+
+    if (game_mode_enable) {
+        if(dev_info.rf_battery < low_bat_level) {
+            side_ws2812_set_color_strip(BAT_SIDE, 0x40, 0x00, 0x00);
+        }
+        return;
     }
 
     if (charge_state != dev_info.rf_charge) {
@@ -867,7 +988,7 @@ void bat_led_show(void) {
 
     uint8_t bat_percent = dev_info.rf_battery;
 
-    if ((bat_percent < 10) && (!(charge_state & 0x01))) {
+    if ((bat_percent < low_bat_level) && (!(charge_state & 0x01))) {
         bat_show_flag = true;
         bat_show_time = timer_read32();
 
@@ -886,10 +1007,12 @@ void bat_led_show(void) {
 #endif
     }
 
+
     if (f_bat_hold || bat_show_flag) {
         bat_percent_led(bat_percent);
     }
 }
+
 
 /**
  * @brief  device_reset_show.
@@ -925,19 +1048,25 @@ void device_reset_show(void) {
     }
 }
 
+
 /**
  * @brief  device_reset_init.
  */
 void device_reset_init(void) {
+    game_mode_enable = 0;
     side_play_point = 0;
 #ifdef SIDE_SEPARATE
     right_side_play_point = 0;
 #endif
 
+    // TODO
+    rgb_matrix_enable_noeeprom();
+
     f_bat_hold      = false;
 
     kb_config_reset();
 }
+
 
 /**
  *      RGB test
@@ -972,22 +1101,89 @@ void rgb_test_show(void) {
     }
 }
 
+void signal_rgb_led(uint8_t selected_color, uint8_t start_led, uint8_t end_led, uint16_t show_time) {
+    rgb_color           = selected_color;
+    rgb_start_led       = start_led;
+    rgb_end_led         = end_led > RGB_MATRIX_LED_COUNT ? start_led : end_led;
+    rgb_show_time       = show_time;
+    rgb_indicator_timer = timer_read32();
+}
+
+void rgb_led_indicator(void) {
+    if (rgb_show_time == 0) { return; }
+    if (timer_elapsed32(rgb_indicator_timer) < rgb_show_time || rgb_show_time == UINT16_MAX) {
+        current_rgb.r = colour_lib[rgb_color][0];
+        current_rgb.g = colour_lib[rgb_color][1];
+        current_rgb.b = colour_lib[rgb_color][2];
+
+        rgb_required  = 2;
+        for (uint8_t i = rgb_start_led; i <= rgb_end_led; i++) {
+            rgb_matrix_set_color(i, current_rgb.r, current_rgb.g, current_rgb.b);
+        }
+    } else {
+        for (uint8_t i = rgb_start_led; i <= rgb_end_led; i++) {
+            rgb_matrix_set_color(i, RGB_OFF);
+        }
+        rgb_show_time       = 0;
+        rgb_indicator_timer = 0;
+    }
+}
+
+
+void caps_word_show(void) {
+    static bool caps_word_rgb_on = 0;
+    if (!is_caps_word_on() || game_mode_enable || !kb_config.caps_word_enable) {
+        if (caps_word_rgb_on) {
+            caps_word_rgb_on = 0;
+            rgb_matrix_set_color(led_idx.KC_CAPS, RGB_OFF);
+        }
+        return;
+    } else {
+        rgb_required     = 2;
+        caps_word_rgb_on = 1;
+        rgb_matrix_set_color(led_idx.KC_CAPS, RGB_CYAN);
+    }
+}
+
+void numlock_rgb_show(void) {
+    static bool num_lock_rgb_on = 0;
+    if (!host_keyboard_led_state().num_lock || kb_config.numlock_state != 2) {
+        if (num_lock_rgb_on) {
+            num_lock_rgb_on = 0;
+            rgb_matrix_set_color(led_idx.KC_NUM, RGB_OFF);
+        }
+        return;
+    } else {
+        rgb_required    = 2;
+        num_lock_rgb_on = 1;
+        rgb_matrix_set_color(led_idx.KC_NUM, RGB_WHITE);
+    }
+}
+
+// TODO: adi, only needed if game mode has separate rgb settings
+/*void rgb_matrix_step_game_mode(uint8_t step) {
+    if (step) {
+        kb_config.game_rgb_mod++;
+        if (kb_config.game_rgb_mod > RGB_MATRIX_CUSTOM_GAME_KEYS) { kb_config.game_rgb_mod = 1; }
+        else if (kb_config.game_rgb_mod > 3) { kb_config.game_rgb_mod = RGB_MATRIX_CUSTOM_GAME_KEYS; }
+    } else {
+        kb_config.game_rgb_mod--;
+        if (kb_config.game_rgb_mod > 3) { kb_config.game_rgb_mod = 3; }
+        else if (kb_config.game_rgb_mod < 1) { kb_config.game_rgb_mod = RGB_MATRIX_CUSTOM_GAME_KEYS; }
+    }
+
+    rgb_matrix_mode_noeeprom(kb_config.game_rgb_mod);
+}*/
+
 /**
  * @brief  side_led_show.
  */
 void side_led_show(void) {
-    static uint32_t side_refresh_time = 0;
     static uint32_t side_update_time  = 0;
-    static bool     flag_power_on     = 1;
-
-    if (flag_power_on) {
-        if (!f_dial_sw_init_ok) return;
-        flag_power_on = 0;
-    }
 
     // side_mode & side_speed should always be valid...
     // refresh side LED animation based on speed.
-    uint8_t update_interval = side_speed_tab[kb_config.side_mode][kb_config.side_speed];
+    uint8_t update_interval = game_mode_enable ? 500 : side_speed_tab[kb_config.side_mode][kb_config.side_speed];
     if (timer_elapsed32(side_update_time) >= update_interval) {
         side_update_time = timer_read32();
         do_refresh       = true;
@@ -1013,7 +1209,12 @@ void side_led_show(void) {
 #ifdef SIDE_SEPARATE
     right_side_led_loop();
 #endif
+}
 
+void realtime_led_process(void) {
+    rgb_led_indicator();
+    caps_word_show();
+    numlock_rgb_show();
 #if (WORK_MODE == THREE_MODE)
     bat_led_show();
     rf_led_show();
@@ -1021,6 +1222,21 @@ void side_led_show(void) {
     sys_led_show();
     sys_sw_led_show();
     sleep_sw_led_show();
+}
+
+void led_show(void) {
+    static uint32_t side_refresh_time = 0;
+    static bool     flag_power_on     = 1;
+
+    if (f_wakeup_prepare) { return; }
+
+    if (flag_power_on) {
+        if (!f_dial_sw_init_ok) return;
+        flag_power_on = 0;
+    }
+
+    side_led_show();
+    realtime_led_process();
 
     // Original is 30, JinCao 10, ryodeushii 50.
     // This only refreshes if LEDs change anyways. Fixes side LED not refreshing synchronously.

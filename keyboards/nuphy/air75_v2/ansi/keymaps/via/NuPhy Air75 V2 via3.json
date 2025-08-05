@@ -36,6 +36,7 @@
                 "options": [
                     "All Off",
                     "Solid Color",
+                    "Alphas Mods",
                     "Gradient Up/Down",
                     "Gradient Left/Right",
                     "Breathing",
@@ -48,7 +49,7 @@
                     "Cycle All",
                     "Cycle Left/Right",
                     "Cycle Up/Down",
-                                        "Rainbow Moving Chevron",
+                    "Rainbow Moving Chevron",
                     "Cycle Out/In",
                     "Cycle Out/In Dual",
                     "Cycle Pinwheel",
@@ -56,11 +57,15 @@
                     "Dual Beacon",
                     "Rainbow Beacon",
                     "Rainbow Pinwheels",
+                    "Flower Blooming",
                     "Raindrops",
                     "Jellybean Raindrops",
                     "Hue Breathing",
                     "Hue Pendulum",
                     "Hue Wave",
+                    "Pixel Fractal",
+                    "Pixel Flow",
+                    "Pixel Rain",
                     "Typing Heatmap",
                     "Digital Rain",
                     "Reactive Simple",
@@ -75,6 +80,12 @@
                     "MultiSplash",
                     "Solid Splash",
                     "Solid MultiSplash"
+                    "Starlight",
+                    "Starlight Dual Hue",
+                    "Starlight Dual Sat",
+                    "Riverflow",
+                    "Effect Max",
+                    "Game Mode"
                 ]
             },
             {
@@ -591,6 +602,36 @@
     {
         "name": "PRNT CFW VERSION",
         "title": "Print Custom Firmware Version"
-    }
+    },
+    {
+        "name": "NumLock\nIns",
+        "title": "NumLock on hold | Ins",
+        "shortName": "Num_Ins"
+    },
+    {
+        "name": "NumLock\nIndicator",
+        "title": "NumLock Indicator",
+        "shortName": "Numlock_Ind"
+    },
+    {
+        "name": "Caps_Word\nTrigger",
+        "title": "Trigger Caps_Word",
+        "shortName": "Caps_Word"
+    },
+    {
+        "name": "Win_Lock\nTrigger",
+        "title": "Win_Lock",
+        "shortName": "Win_Lock"
+    },
+    {
+        "name": "Debounce\nType",
+        "title": "Debounce Type",
+        "shortName": "Debounce_T"
+    },
+    {
+        "name": "Game\nMode",
+        "title": "Trigger Game Mode",
+        "shortName": "Game_Mode"
+    },
 ]
 }

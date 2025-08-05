@@ -25,7 +25,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 extern kb_config_t     kb_config;
 extern DEV_INFO_STRUCT dev_info;
 extern uint16_t        rf_linking_time;
-extern uint16_t        rf_link_timeout;
 extern uint32_t        no_act_time;
 extern bool            f_goto_sleep;
 extern bool            f_wakeup_prepare;
@@ -45,6 +44,9 @@ void deep_sleep_handle(void) {
 
     // Sync again before sleeping. Without this, the wake keystroke is more likely to be lost.
     dev_sts_sync();
+
+    // Signal sleep
+    //signal_sleep();
 
     enter_deep_sleep(); // puts the board in WFI mode and pauses the MCU
     exit_deep_sleep();  // This gets called when there is an interrupt (wake) event.
@@ -67,6 +69,20 @@ void sleep_handle(void) {
         return;
     }
     delay_step_timer = timer_read32();
+
+    // TODO: An interesting alternate behavior from adi.
+    // See his branch for rest of diff.
+    /*// deep sleep check
+    if (user_config.sleep_mode != 1 || f_rf_sleep) {
+        f_goto_deepsleep = 0;
+    } else if (no_act_time >= (user_config.light_sleep + DEEP_SLEEP_TIME) * T_MIN) {
+        f_goto_deepsleep = 1;
+    }
+
+    if (f_goto_deepsleep != 0) {
+        deep_sleep_handle();
+        return;
+    }*/
 
     if (kb_config.sleep_mode == SLEEP_MODE_OFF) return;
     uint32_t sleep_time_delay = get_sleep_timeout();
@@ -166,7 +182,9 @@ void sleep_handle(void) {
 #if (WORK_MODE == THREE_MODE)
     else if (no_act_time >= sleep_time_delay) {
         f_goto_sleep = 1;
-    } else if (rf_linking_time >= kb_config.rf_link_timeout) {
+    } else if (rf_linking_time >= kb_config.rf_link_timeout ||
+               // TODO: adi
+               rf_linking_time >= (dev_info.link_mode == LINK_RF_24 ? (link_timeout / 4) : link_timeout)) {
         f_goto_sleep = 1;
     } else if (dev_info.rf_state == RF_DISCONNECT) {
         rf_disconnect_time++;

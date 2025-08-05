@@ -45,6 +45,7 @@ uint8_t  sync_lost        = 0;
 uint8_t  disconnect_delay = 0;
 bool     uart_repeat_flag = 0;
 uint32_t uart_rpt_timer   = 0;
+uint32_t dequeue_delay       = 0;
 
 report_buffer_t report_buff_a = {0};
 report_buffer_t report_buff_b = {0};
@@ -107,12 +108,17 @@ void clear_report_buffer_and_queue(void) {
  */
 void uart_send_repeat_from_queue(void) {
     static uint32_t        dequeue_timer = 0;
+    static uint8_t         f_send_delay  = 0;
     static uint32_t        repeat_timer  = 0;
     static report_buffer_t report_buff   = {0};
     static bool            do_repeat     = true;
-    // ryodeushii set this to > 25
-    if (timer_elapsed32(dequeue_timer) >= 30 && !rf_queue.is_empty()) {
-        rf_queue.dequeue(&report_buff);
+    // ryodeushii set this to > 25, Older to >= 30, adi to > 12
+    if (timer_elapsed32(dequeue_timer) > 12 && !rf_queue.is_empty()) {
+        if (timer_elapsed32(dequeue_timer) < 25) { dequeue_delay += timer_elapsed32(dequeue_timer); }
+        f_send_delay = dev_info.link_mode > 0 ? 3 : kb_config.rf_delay_step;
+        if (dequeue_delay > f_send_delay * 200 + 80) {
+            rf_queue.dequeue(&report_buff);
+        }
         dequeue_timer = timer_read32();
         // Repeat only keyboard reports. Extra reports actually repeat the keys.
         do_repeat = (report_buff.cmd == CMD_RPT_BYTE_KB || report_buff.cmd == CMD_RPT_BIT_KB);
@@ -121,6 +127,7 @@ void uart_send_repeat_from_queue(void) {
     // queue is empty, continue sending from standard process.
     if (rf_queue.is_empty()) {
         clear_report_buffer_and_queue();
+        dequeue_delay = 0;
         if (do_repeat) report_buff_a = report_buff;
     }
 
@@ -158,10 +165,11 @@ void uart_send_report_repeat(void) {
 
     uint8_t interval = get_repeat_interval();
     if (timer_elapsed32(uart_rpt_timer) >= interval) {
-        if (no_act_time <= 25) { // increments every 10ms
+        if (no_act_time <= 25) { // increments every 10ms, 25 = 250ms //
             if (report_buff_a.cmd) {
                 uart_send_report(report_buff_a.cmd, report_buff_a.buffer, report_buff_a.length);
                 report_buff_a.repeat++;
+                if (report_buff_a.cmd) { wait_us(100); }
             }
 
             if (report_buff_b.cmd) {
@@ -188,9 +196,9 @@ void rf_protocol_receive(void) {
             Usart_Mgr.RXDState = RX_DATA_ERR;
             return;
         } else if (Usart_Mgr.RXDLen > 4) {
-            for (i = 0; i < RX_LEN; i++)
+            for (i = 0; i < RX_LEN; i++) {
                 check_sum += Usart_Mgr.RXDBuf[4 + i];
-
+            }
             if (check_sum != Usart_Mgr.RXDBuf[4 + i]) {
                 Usart_Mgr.RXDState = RX_SUM_ERR;
                 return;
@@ -215,7 +223,9 @@ void rf_protocol_receive(void) {
             }
 
             case CMD_24G_SUSPEND: {
-                f_goto_sleep = 1;
+                if (!USB_ACTIVE) {
+                    f_goto_sleep = 1;
+                }
                 break;
             }
 
@@ -342,8 +352,8 @@ uint8_t uart_send_cmd(uint8_t cmd, uint8_t wait_ack, uint8_t delayms) {
             Usart_Mgr.TXDBuf[4] = dev_info.link_mode;
             Usart_Mgr.TXDBuf[5] = dev_info.link_mode;
 
-            rf_linking_time  = 0;
-            disconnect_delay = 0xff;
+            rf_linking_time     = 0;
+            disconnect_delay = UINT8_MAX;
             break;
         }
 
@@ -354,9 +364,10 @@ uint8_t uart_send_cmd(uint8_t cmd, uint8_t wait_ack, uint8_t delayms) {
             Usart_Mgr.TXDBuf[5] = 1;
             Usart_Mgr.TXDBuf[6] = dev_info.link_mode + 1;
 
-            rf_linking_time  = 0;
-            disconnect_delay = 0xff;
-            f_rf_new_adv_ok  = 0;
+            rf_linking_time     = 0;
+            link_timeout        = T_MIN * 4;
+            disconnect_delay = UINT8_MAX;
+            f_rf_new_adv_ok     = 0;
             break;
         }
 
@@ -369,8 +380,8 @@ uint8_t uart_send_cmd(uint8_t cmd, uint8_t wait_ack, uint8_t delayms) {
 
         case CMD_SET_CONFIG: {
             Usart_Mgr.TXDBuf[3] = 1;
-            Usart_Mgr.TXDBuf[4] = POWER_DOWN_DELAY;
-            Usart_Mgr.TXDBuf[5] = POWER_DOWN_DELAY;
+            Usart_Mgr.TXDBuf[4] = RF_POWER_DOWN_DELAY;
+            Usart_Mgr.TXDBuf[5] = RF_POWER_DOWN_DELAY;
             break;
         }
 
@@ -464,7 +475,10 @@ uint8_t uart_send_cmd(uint8_t cmd, uint8_t wait_ack, uint8_t delayms) {
     }
 
     f_uart_ack = 0;
+
+    uart_repeat_flag = 1;
     uart_send_bytes(Usart_Mgr.TXDBuf, Usart_Mgr.TXDBuf[3] + 5);
+    uart_repeat_flag = 0;
 
     if (wait_ack) {
         while (wait_ack--) {
@@ -535,6 +549,8 @@ void dev_sts_sync(void) {
 
             if (link_state_temp != RF_CONNECT) {
                 link_state_temp   = RF_CONNECT;
+                // TODO: adi
+                link_timeout   = kb_config.sleep_mode == SLEEP_MODE_LIGHT ? (T_MIN * 1) : (T_MIN * 2);
                 rf_link_show_time = 0;
                 if (dev_info.link_mode == LINK_RF_24) {
                     uart_send_cmd(CMD_SET_24G_NAME, 10, 30);
@@ -544,7 +560,13 @@ void dev_sts_sync(void) {
         }
     }
 
-    uart_send_cmd(CMD_RF_STS_SYSC, 1, 0);
+    /** This is called in house keeping with 1ms delay and
+     *  1ms wait time originally. Set to 0 the wait time to not hold up housekeeping
+     *  if RF is sleeping we don't want to sync and wakeup the RF
+    */
+    // TODO: adi
+    if (f_wakeup_prepare /* && f_rf_sleep */) { return; }
+    uart_send_cmd(CMD_RF_STS_SYSC, 1, 1);
 
     /* reset report repeat timer, might reduce repeat keys? */
     uart_rpt_timer = timer_read32();
@@ -607,8 +629,9 @@ uint8_t get_checksum(uint8_t *buf, uint8_t len) {
     uint8_t i;
     uint8_t checksum = 0;
 
-    for (i = 0; i < len; i++)
+    for (i = 0; i < len; i++) {
         checksum += *buf++;
+    }
 
     checksum ^= UART_HEAD;
 
@@ -688,6 +711,11 @@ void uart_receive_pro(void) {
     rcv_timer = timer_read32();
 }
 
+void m_uart_gpio_set_low_speed(void) {
+    GPIOB->OSPEEDR &= ~(GPIO_OSPEEDER_OSPEEDR6 | GPIO_OSPEEDER_OSPEEDR7);
+    GPIOB->PUPDR |= (GPIO_PUPDR_PUPDR6_0 | GPIO_PUPDR_PUPDR7_0);
+}
+
 /**
  * @brief  RF uart initial.
  */
@@ -701,8 +729,7 @@ void rf_uart_init(void) {
     USART1->CR1 |= USART_CR1_UE;
 
     /* set Rx and Tx pin pull up */
-    GPIOB->OSPEEDR &= ~(GPIO_OSPEEDER_OSPEEDR6 | GPIO_OSPEEDER_OSPEEDR7);
-    GPIOB->PUPDR |= (GPIO_PUPDR_PUPDR6_0 | GPIO_PUPDR_PUPDR7_0);
+    m_uart_gpio_set_low_speed();
 }
 
 /**

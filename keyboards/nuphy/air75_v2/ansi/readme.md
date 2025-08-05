@@ -10,12 +10,12 @@
 Make example for this keyboard (after setting up your build environment):
 
     Original: make nuphy/air75_v2/ansi:default
-    JinCao/ryodeushii: make nuphy/air75_v2/ansi:via
+    JinCao/ryodeushii/adi4086: make nuphy/air75_v2/ansi:via
 
 Flashing example for this keyboard:
 
     Original: make nuphy/air75_v2/ansi:default:flash
-    JinCao/ryodeushii: make nuphy/air75_v2/ansi:via:flash
+    JinCao/ryodeushii/adi4086: make nuphy/air75_v2/ansi:via:flash
 
 See the [build environment setup](https://docs.qmk.fm/#/getting_started_build_tools) and the [make instructions](https://docs.qmk.fm/#/getting_started_make_guide) for more information. Brand new to QMK? Start with our [Complete Newbs Guide](https://docs.qmk.fm/#/newbs).
 
@@ -25,7 +25,7 @@ See the [build environment setup](https://docs.qmk.fm/#/getting_started_build_to
 
 ## Bootloader
 
-Enter the bootloader in one way:
+Enter the bootloader:
 
 * **Bootmagic reset**: Hold down the key at (0,0) in the matrix (usually the top left key or Escape) and plug in the keyboard
 * **Keycode in layout**: Press the key mapped to `QK_BOOT` if it is available
@@ -48,3 +48,7 @@ ryodeushii numbers, probably N/A to the merged fork.
 
 Main: STM32F072RBT6 [description](https://www.st.com/en/microcontrollers-microprocessors/stm32f072rb.html)
 Wireless: NRF52831 [description](https://www.nordicsemi.com/Products/nRF52832)
+
+## Customizations and Fixes
+
+* [customizations.md](customizations.md)

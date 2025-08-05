@@ -1,4 +1,4 @@
-SRC += mcu_pwr.c side.c side_table.c rf.c sleep.c rf_driver.c kb_util.c side_driver.c rf_queue.c
+SRC += mcu_pwr.c side.c side_table.c rf.c sleep.c rf_driver.c kb_util.c side_driver.c ws2812_bitbang.c rf_queue.c redefine.c
 
 ifeq ($(RIGHT_SIDE_ENABLE), yes)
     SRC += side_right.c
@@ -11,6 +11,10 @@ UART_DRIVER_REQUIRED = yes
 SRC += debounce.c
 
 UART_DRIVER_REQUIRED = yes
+OS_DETECTION_ENABLE = yes
+
+# GCC_EXTRA_OPTIONS =
+# OPT = s $(GCC_EXTRA_OPTIONS)
 
 OPT ?= 2
 CUSTOM_MATRIX = lite

@@ -17,13 +17,25 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#define SYS_SIDE SIDE_RIGHT
-#define BAT_SIDE SIDE_RIGHT
-#define RF_SIDE SIDE_LEFT
+#define SYS_SIDE RIGHT_SIDE
+#define BAT_SIDE RIGHT_SIDE
+#define RF_SIDE LEFT_SIDE
 
 #define USB_MODE 0
 #define THREE_MODE 1
 #define WORK_MODE THREE_MODE
+
+#if !defined(NO_DEBUG) && !defined(CONSOLE_ENABLE)
+#define NO_DEBUG
+#endif // !NO_DEBUG
+
+#if !defined(NO_PRINT) && !defined(CONSOLE_ENABLE)
+#define NO_PRINT
+#endif // !NO_PRINT
+
+#if !defined(NO_DEBUG) && defined(CONSOLE_ENABLE)
+#define DEBUG_MATRIX_SCAN_RATE
+#endif // DEBUG_MATRIX_SCAN_RATE
 
 #define DYNAMIC_KEYMAP_MACRO_DELAY 8
 #define TAPPING_TERM 200
@@ -40,6 +52,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DRIVER_SIDE_PIN C8
 #define DRIVER_SIDE_CS_PIN C9
 
+#define GPIO_INPUT_PIN_DELAY                12
+
+#define OS_DETECTION_DEBOUNCE              250
+#define OS_DETECTION_KEYBOARD_RESET
+
+// remove unused QMK functions to save space
+/*
+#define NO_ACTION_ONESHOT
+#undef LAYER_LOCK_ENABLE
+#undef LEADER_ENABLE
+#undef GRAVE_ESC_ENABLE
+#undef SPACE_CADET_ENABLE
+*/
+
 #define SERIAL_DRIVER SD1
 #define UART_TX_PIN B6
 #define UART_TX_PAL_MODE 0
@@ -51,16 +77,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // ryodeushii
 #ifdef VIA_ENABLE
-#    define VIA_EEPROM_CUSTOM_CONFIG_SIZE 27 // sizeof via_config
+#    define VIA_EEPROM_CUSTOM_CONFIG_SIZE 32 // 22 // sizeof via_config
 #elif defined(SIDE_SEPARATE)
-#    define EECONFIG_KB_DATA_SIZE 25
+#    define EECONFIG_KB_DATA_SIZE 30 // 20
 #else
-#    define EECONFIG_KB_DATA_SIZE 20
+#    define EECONFIG_KB_DATA_SIZE 25 // 15
 #endif
+// #define EECONFIG_KB_DATA_SIZE               26
 
 #define WS2812_TIMING 850
-#define WS2812_T1H 700
-#define WS2812_T0H 150
+#define WS2812_T1H 700 // Width of a 1 bit in ns
+#define WS2812_T1L (WS2812_TIMING - WS2812_T1H) // Width of a 1 bit in ns
+#define WS2812_T0H 150 // Width of a 0 bit in ns
+#define WS2812_T0L (WS2812_TIMING - WS2812_T0H)
 
 #define WS2812_PWM_DRIVER PWMD3
 #define WS2812_PWM_CHANNEL 2
@@ -130,6 +159,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DEFAULT_BATTERY_INDICATOR_NUMERIC 0
 #define DEFAULT_SHOW_SOCD_INDICATOR 0
 #define DEFAULT_RF_LINK_TIMEOUT LINK_TIMEOUT_ALT
+
+#define DEFAULT_CAPS_WORD_ENABLE 0
+#define DEFAULT_NUMLOCK_STATE 0
+#define DEFAULT_RF_DELAY_STEP 2
+#define DEFAULT_DEBOUNCE_TYPE 1
 /*
  * END OF DEFAULT VALUES
  */
