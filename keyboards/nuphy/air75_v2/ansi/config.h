@@ -78,8 +78,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // ryodeushii
 #ifdef VIA_ENABLE
 #    define VIA_EEPROM_CUSTOM_CONFIG_SIZE 32 // 22 // sizeof via_config
-     // Needed to satisfy static_assert in kb_util.h
-#    define EECONFIG_KB_DATA_SIZE VIA_EEPROM_CUSTOM_CONFIG_SIZE
 #elif defined(SIDE_SEPARATE)
 #    define EECONFIG_KB_DATA_SIZE 30 // 20
 #else
