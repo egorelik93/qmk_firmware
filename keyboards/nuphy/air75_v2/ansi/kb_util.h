@@ -172,9 +172,7 @@ typedef struct {
 } DEV_INFO_STRUCT;
 
 typedef struct {
-    // JinCao renamed this to init_flag, but still only used for default_brightness
-    // Keeping original name for now.
-    uint8_t  default_brightness_flag;
+    uint8_t  init_flag;
     // (top) side light config
     uint8_t  side_mode;
     uint8_t  side_light;

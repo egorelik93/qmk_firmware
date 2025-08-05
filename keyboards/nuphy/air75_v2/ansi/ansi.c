@@ -1027,7 +1027,7 @@ void housekeeping_task_kb(void) {
 }
 
 void kb_config_init(void) {
-    kb_config.default_brightness_flag      = 0xA5;
+    kb_config.init_flag                    = 0xA5;
     kb_config.sleep_mode                   = DEFAULT_SLEEP_MODE;
     kb_config.usb_sleep_toggle             = DEFAULT_USB_SLEEP_TOGGLE;
     kb_config.sleep_timeout                = DEFAULT_SLEEP_TIMEOUT;
