@@ -1,6 +1,6 @@
 {
-    "manufacturer": "NuPhy",
     "keyboard_name": "NuPhy Air75 V2",
+    "manufacturer": "NuPhy",
     "usb":{
         "vid": "0x19F5",
         "pid": "0x3246",
