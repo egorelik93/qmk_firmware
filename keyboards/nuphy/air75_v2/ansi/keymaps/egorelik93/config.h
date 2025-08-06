@@ -29,4 +29,4 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DEFAULT_SLEEP_TIMEOUT 3
 
 #undef  DEFAULT_DEEP_SLEEP_TIMEOUT
-#define DEFAULT_DEEP_SLEEP_TIMEOUT 0
+#define DEFAULT_DEEP_SLEEP_TIMEOUT 2

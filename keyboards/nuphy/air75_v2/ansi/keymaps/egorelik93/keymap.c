@@ -21,6 +21,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "keycodes.h"
 #include QMK_KEYBOARD_H
 
+#define DSLEEP_TIMEOUT_INC DEEP_SLEEP_TIMEOUT_INC
+#define DSLEEP_TIMEOUT_DEC DEEP_SLEEP_TIMEOUT_DEC
+#define DSLEEP_TIMEOUT_SHOW DEEP_SLEEP_TIMEOUT_SHOW
+
 #define O_2_VI LT(2, KC_O)
 #define EVIL_U2D LT(2, KC_U)
 #define EVIL_Y LT(2, KC_Y)
@@ -66,8 +70,8 @@ TOG_CAPS_IND,    SLEEP_TIMEOUT_DEC,    SLEEP_TIMEOUT_SHOW,    SLEEP_TIMEOUT_INC,
 [3] = LAYOUT_75_ansi(
     _______,    KC_BRID,    KC_BRIU,    KC_CALC,   SOCDOFF,    SOCDTOG,     _______,   KC_MPRV,    KC_MPLY,     KC_MNXT,   KC_MUTE,    KC_VOLD,    KC_VOLU,     KC_PSCR,    _______,    _______,
     _______,    LNK_BLE1,   LNK_BLE2,   LNK_BLE3,  LNK_RF,     _______,     _______,   _______,    _______,     _______,   _______,    _______,    _______,                 _______,    _______,
-    _______,    _______,    _______,    _______,   _______,    _______,DEBOUNCE_PRESS_DEC,    DEBOUNCE_PRESS_SHOW,    DEBOUNCE_PRESS_INC,_______,    _______,DEV_RESET,_______,BAT_SHOW,   _______,
-TOG_CAPS_IND,    SLEEP_TIMEOUT_DEC,    SLEEP_TIMEOUT_SHOW,    SLEEP_TIMEOUT_INC,_______,    _______,DEBOUNCE_RELEASE_DEC,   DEBOUNCE_RELEASE_SHOW,    DEBOUNCE_RELEASE_INC,_______,    _______,    _______,    _______,    _______,
+    _______,   DSLEEP_TIMEOUT_DEC,   DSLEEP_TIMEOUT_SHOW,   DSLEEP_TIMEOUT_INC,   _______,    _______,DEBOUNCE_PRESS_DEC,    DEBOUNCE_PRESS_SHOW,    DEBOUNCE_PRESS_INC,_______,    _______,DEV_RESET,_______,BAT_SHOW,   _______,
+TOG_CAPS_IND,   SLEEP_TIMEOUT_DEC,    SLEEP_TIMEOUT_SHOW,    SLEEP_TIMEOUT_INC,_______,    _______,DEBOUNCE_RELEASE_DEC,   DEBOUNCE_RELEASE_SHOW,    DEBOUNCE_RELEASE_INC,_______,    _______,    _______,    _______,    _______,
     _______,                _______,    _______,   _______,    _______,     BAT_NUM,   _______,    MO(4),       RGB_SPD,   RGB_SPI,    _______,                 _______,    _______,    _______,
     _______,    _______,    _______,                                        _______,                            _______,   MO(3),      _______,                 RM_NEXT,    _______,    RM_HUEU),
 
