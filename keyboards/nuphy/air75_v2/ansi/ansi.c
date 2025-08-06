@@ -908,9 +908,9 @@ bool rgb_matrix_indicators_advanced_kb(uint8_t led_min, uint8_t led_max) {
         user_set_rgb_color(two_digit_ones_led(kb_config.sleep_timeout), 0x00, 0x80, 0x80);
     }
 
-    if (f_deep_sleep_timeout_show) { // off cyan numbers - deep sleep timeout
-        user_set_rgb_color(two_digit_decimals_led(kb_config.deep_sleep_timeout), 0x20, 0x80, 0x80);
-        user_set_rgb_color(two_digit_ones_led(kb_config.deep_sleep_timeout), 0x20, 0x80, 0x80);
+    if (f_deep_sleep_timeout_show) { // blue numbers - deep sleep timeout
+        user_set_rgb_color(two_digit_decimals_led(kb_config.deep_sleep_timeout), 0x00, 0x00, 0x80);
+        user_set_rgb_color(two_digit_ones_led(kb_config.deep_sleep_timeout), 0x00, 0x00, 0x80);
     }
 
     if (kb_config.show_socd_indicator && socd_cleaner_enabled) {
