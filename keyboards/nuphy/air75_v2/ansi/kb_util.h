@@ -132,6 +132,7 @@ typedef enum { DEBOUNCE_PRESS = 0, DEBOUNCE_RELEASE } DEBOUNCE_EVENT;
 #define RGB_TEST_PRESS_DELAY 30
 
 #define T_MIN                     (100 * 60)
+#define DEEP_SLEEP_TIME           4
 
 // TODO: Do we need these
 #define RGB_MATRIX_GAME_MODE      RGB_MATRIX_GRADIENT_LEFT_RIGHT
@@ -186,6 +187,8 @@ typedef struct {
     uint8_t debounce_press_ms;
     uint8_t debounce_release_ms;
     uint8_t sleep_timeout;
+    // Similar to how adi uses light_sleep but reversed, added on to sleep_timeout.
+    uint8_t deep_sleep_timeout;
     uint8_t caps_indicator_type;
 #ifdef SIDE_SEPARATE
     // right side light config
@@ -326,13 +329,16 @@ uint8_t  two_digit_decimals_led(uint8_t value);
 uint8_t  two_digit_ones_led(uint8_t value);
 void     adjust_debounce(uint8_t dir, DEBOUNCE_EVENT debounce_event);
 uint32_t get_sleep_timeout(void);
+uint32_t get_deep_sleep_timeout(void);
 void     adjust_sleep_timeout(uint8_t dir);
+void     adjust_deep_sleep_timeout(uint8_t dir);
 
 void    matrix_io_delay(void);
 void    game_mode_tweak(void);
 void    user_debug(void);
 void    call_update_eeprom_data(bool* eeprom_update_init);
 void    signal_rgb_led(uint8_t selected_color, uint8_t start_led, uint8_t end_led, uint16_t show_time);
+void    signal_rgb_led_2(uint8_t selected_color, uint8_t start_led_1, uint8_t end_led_1, uint8_t start_led_2, uint8_t end_led_2, uint16_t show_time);
 void    reset_led_idx(void);
 void    debounce_type(void);
 void    game_config_reset(uint8_t save_to_eeprom);
@@ -340,6 +346,7 @@ void    rgb_matrix_step_game_mode(uint8_t step);
 void    power_save(void);
 void    clear_rgb(void);
 //uint8_t step_helper(uint8_t dir, uint8_t value);
+void    show_step(uint8_t value);
 uint8_t get_led_idx(uint16_t keycode);
 
 #ifdef SIDE_SEPARATE

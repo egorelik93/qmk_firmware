@@ -46,6 +46,7 @@ extern uint8_t         rf_sw_temp;
 extern bool            f_debounce_press_show;
 extern bool            f_debounce_release_show;
 extern bool            f_sleep_timeout_show;
+extern bool            f_deep_sleep_timeout_show;
 extern uint16_t        rf_sw_press_delay;
 extern uint16_t        rf_linking_time;
 
@@ -119,6 +120,9 @@ bool process_record_early(uint16_t keycode, keyrecord_t *record) {
         case SLEEP_TIMEOUT_INC:
         case SLEEP_TIMEOUT_DEC:
         case SLEEP_TIMEOUT_SHOW:
+        case DEEP_SLEEP_TIMEOUT_INC:
+        case DEEP_SLEEP_TIMEOUT_DEC:
+        case DEEP_SLEEP_TIMEOUT_SHOW:
         case CAPS_WORD:
             if (game_mode_enable) { return false; }
             return true;
@@ -658,6 +662,31 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 #endif
             }
             return false;
+
+        case DEEP_SLEEP_TIMEOUT_SHOW:
+            if (record->event.pressed) {
+                f_deep_sleep_timeout_show = !f_deep_sleep_timeout_show;
+            }
+            return false;
+
+        case DEEP_SLEEP_TIMEOUT_INC:
+            if (record->event.pressed) {
+                adjust_deep_sleep_timeout(1);
+#ifndef NO_DEBUG
+                dprintf("deep sleep timeout:    %lumin\n", get_deep_sleep_timeout());
+#endif
+            }
+            return false;
+
+        case DEEP_SLEEP_TIMEOUT_DEC:
+            if (record->event.pressed) {
+                adjust_deep_sleep_timeout(0);
+#ifndef NO_DEBUG
+                dprintf("deep sleep timeout:    %lumin\n", get_deep_sleep_timeout());
+#endif
+            }
+            return false;
+
         case TOG_BAT_IND_NUM:
             if (record->event.pressed) {
                 kb_config.battery_indicator_numeric = !kb_config.battery_indicator_numeric;
@@ -878,6 +907,11 @@ bool rgb_matrix_indicators_advanced_kb(uint8_t led_min, uint8_t led_max) {
         user_set_rgb_color(two_digit_ones_led(kb_config.sleep_timeout), 0x00, 0x80, 0x80);
     }
 
+    if (f_deep_sleep_timeout_show) { // off cyan numbers - deep sleep timeout
+        user_set_rgb_color(two_digit_decimals_led(kb_config.deep_sleep_timeout), 0x20, 0x80, 0x80);
+        user_set_rgb_color(two_digit_ones_led(kb_config.deep_sleep_timeout), 0x20, 0x80, 0x80);
+    }
+
     if (kb_config.show_socd_indicator && socd_cleaner_enabled) {
         user_set_rgb_color(get_led_index(2, 2), RGB_BLUE);
         user_set_rgb_color(get_led_index(3, 2), RGB_BLUE);
@@ -1033,6 +1067,7 @@ void kb_config_init(void) {
     kb_config.sleep_mode                   = DEFAULT_SLEEP_MODE;
     kb_config.usb_sleep_toggle             = DEFAULT_USB_SLEEP_TOGGLE;
     kb_config.sleep_timeout                = DEFAULT_SLEEP_TIMEOUT;
+    kb_config.deep_sleep_timeout           = DEFAULT_DEEP_SLEEP_TIMEOUT;
     kb_config.debounce_press_ms            = DEBOUNCE;
     kb_config.debounce_release_ms          = RELEASE_DEBOUNCE;
     kb_config.caps_indicator_type          = DEFAULT_CAPS_INDICATOR_TYPE;
