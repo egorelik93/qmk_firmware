@@ -996,7 +996,7 @@ void adjust_sleep_timeout(uint8_t dir) {
 
 void adjust_deep_sleep_timeout(uint8_t dir) {
     if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
-        if (kb_config.deep_sleep_timeout > 1 && !dir) {
+        if (kb_config.deep_sleep_timeout > 0 && !dir) {
             kb_config.deep_sleep_timeout -= SLEEP_TIMEOUT_STEP;
         } else if (kb_config.deep_sleep_timeout < 60 && dir) {
             kb_config.deep_sleep_timeout += SLEEP_TIMEOUT_STEP;
