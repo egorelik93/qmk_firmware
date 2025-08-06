@@ -50,8 +50,10 @@ uint8_t low_bat_blink_cnt = 6;
 bool    do_refresh        = false;
 
 uint8_t  rgb_color            = 0;
-uint8_t  rgb_start_led        = 0;
-uint8_t  rgb_end_led          = 0;
+uint8_t  rgb_start_led_1      = 0;
+uint8_t  rgb_end_led_1        = 0;
+uint8_t  rgb_start_led_2      = 0;
+uint8_t  rgb_end_led_2        = 0;
 uint32_t rgb_show_time        = 0;
 uint32_t rgb_indicator_timer  = 0;
 
@@ -1103,9 +1105,15 @@ void rgb_test_show(void) {
 }
 
 void signal_rgb_led(uint8_t selected_color, uint8_t start_led, uint8_t end_led, uint16_t show_time) {
+    signal_rgb_led_2(selected_color, start_led, end_led, 0, -1, show_time);
+}
+
+void signal_rgb_led_2(uint8_t selected_color, uint8_t start_led_1, uint8_t end_led_1, uint8_t start_led_2, uint8_t end_led_2, uint16_t show_time) {
     rgb_color           = selected_color;
-    rgb_start_led       = start_led;
-    rgb_end_led         = end_led > RGB_MATRIX_LED_COUNT ? start_led : end_led;
+    rgb_start_led_1     = start_led_1;
+    rgb_end_led_1       = end_led_1 > RGB_MATRIX_LED_COUNT ? start_led_1 : end_led_1;
+    rgb_start_led_2     = start_led_2;
+    rgb_end_led_2       = end_led_2 > RGB_MATRIX_LED_COUNT ? start_led_2 : end_led_2;
     rgb_show_time       = show_time;
     rgb_indicator_timer = timer_read32();
 }
@@ -1118,11 +1126,17 @@ void rgb_led_indicator(void) {
         current_rgb.b = colour_lib[rgb_color][2];
 
         rgb_required  = 2;
-        for (uint8_t i = rgb_start_led; i <= rgb_end_led; i++) {
+        for (uint8_t i = rgb_start_led_1; i <= rgb_end_led_1; i++) {
+            rgb_matrix_set_color(i, current_rgb.r, current_rgb.g, current_rgb.b);
+        }
+        for (uint8_t i = rgb_start_led_2; i <= rgb_end_led_2; i++) {
             rgb_matrix_set_color(i, current_rgb.r, current_rgb.g, current_rgb.b);
         }
     } else {
-        for (uint8_t i = rgb_start_led; i <= rgb_end_led; i++) {
+        for (uint8_t i = rgb_start_led_1; i <= rgb_end_led_1; i++) {
+            rgb_matrix_set_color(i, RGB_OFF);
+        }
+        for (uint8_t i = rgb_start_led_2; i <= rgb_end_led_2; i++) {
             rgb_matrix_set_color(i, RGB_OFF);
         }
         rgb_show_time       = 0;

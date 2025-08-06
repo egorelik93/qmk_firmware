@@ -74,6 +74,7 @@ void sleep_handle(void) {
 #if (WORK_MODE == THREE_MODE)
     static uint32_t rf_disconnect_time   = 0;
 #endif
+    static bool f_light_to_deep_sleep    = 0;
 
     /* 50ms interval */
     if (timer_elapsed32(delay_step_timer) < 50) {
@@ -97,6 +98,17 @@ void sleep_handle(void) {
 
     if (kb_config.sleep_mode == SLEEP_MODE_OFF) return;
     uint32_t sleep_time_delay = get_sleep_timeout();
+    uint32_t deep_sleep_time_delay = get_deep_sleep_timeout();
+
+    if (f_light_to_deep_sleep && !f_goto_sleep) {
+        if (no_act_time < sleep_time_delay) {
+            f_light_to_deep_sleep = 0;
+        } else if (no_act_time >= sleep_time_delay + deep_sleep_time_delay) {
+            f_light_to_deep_sleep = 0;
+            f_goto_sleep = 1;
+        }
+    }
+
     // sleep process;
     if (f_goto_sleep) {
         // reset all counters
@@ -121,7 +133,7 @@ void sleep_handle(void) {
             break_all_key();
             enter_light_sleep();
             // otherwise -> deep sleep
-        } else if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
+        } else if (kb_config.sleep_mode == SLEEP_MODE_DEEP && !f_light_to_deep_sleep) {
             break_all_key(); // reset keys before sleeping for new QMK lifecycle to handle on wake.
             deep_sleep_handle();
             return; // don't need to do anything else
@@ -185,6 +197,9 @@ void sleep_handle(void) {
 #if (WORK_MODE == THREE_MODE)
     else if (no_act_time >= sleep_time_delay) {
         f_goto_sleep = 1;
+        if (deep_sleep_time_delay > 0 && no_act_time < sleep_time_delay + deep_sleep_time_delay) {
+            f_light_to_deep_sleep = 1;
+        }
     } else if (rf_linking_time >= kb_config.rf_link_timeout ||
                // TODO: adi
                rf_linking_time >= (dev_info.link_mode == LINK_RF_24 ? (link_timeout / 4) : link_timeout)) {

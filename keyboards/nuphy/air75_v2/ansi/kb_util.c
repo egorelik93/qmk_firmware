@@ -52,6 +52,7 @@ bool f_bat_num_show    = 0;
 bool f_debounce_press_show   = 0;
 bool f_debounce_release_show = 0;
 bool f_sleep_timeout_show    = 0;
+bool f_deep_sleep_timeout_show = 0;
 bool game_mode_enable    = 0;
 bool rgb_power_save      = 0;
 
@@ -821,6 +822,13 @@ void user_set_rgb_color(int index, uint8_t red, uint8_t green, uint8_t blue) {
     return value;
 }*/
 
+void show_step(uint8_t value) {
+    uint8_t tens = two_digit_decimals_led(value);
+    uint8_t ones = two_digit_ones_led(value);
+
+    signal_rgb_led_2(3, tens, UINT8_MAX, ones, UINT8_MAX, 3000);
+}
+
 // TODO
 void power_save(void) {
     static uint16_t power_check_timer      = 0;
@@ -955,14 +963,18 @@ void adjust_debounce(uint8_t dir, DEBOUNCE_EVENT debounce_event) {
     if (dir) {
         if (debounce_event == DEBOUNCE_PRESS && kb_config.debounce_press_ms < 99) {
             kb_config.debounce_press_ms += DEBOUNCE_STEP;
+            show_step(kb_config.debounce_press_ms);
         } else if (debounce_event == DEBOUNCE_RELEASE && kb_config.debounce_release_ms < 99) {
             kb_config.debounce_release_ms += DEBOUNCE_STEP;
+            show_step(kb_config.debounce_release_ms);
         }
     } else if (!dir) {
         if (debounce_event == DEBOUNCE_PRESS && kb_config.debounce_press_ms > 0) {
             kb_config.debounce_press_ms -= DEBOUNCE_STEP;
+            show_step(kb_config.debounce_press_ms);
         } else if (debounce_event == DEBOUNCE_RELEASE && kb_config.debounce_release_ms > 0) {
             kb_config.debounce_release_ms -= DEBOUNCE_STEP;
+            show_step(kb_config.debounce_release_ms);
         }
     }
     save_config_to_eeprom();
@@ -977,6 +989,19 @@ void adjust_sleep_timeout(uint8_t dir) {
             kb_config.sleep_timeout += SLEEP_TIMEOUT_STEP;
         }
         save_config_to_eeprom();
+        show_step(kb_config.sleep_timeout);
+    }
+}
+
+void adjust_deep_sleep_timeout(uint8_t dir) {
+    if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
+        if (kb_config.deep_sleep_timeout > 1 && !dir) {
+            kb_config.deep_sleep_timeout -= SLEEP_TIMEOUT_STEP;
+        } else if (kb_config.deep_sleep_timeout < 60 && dir) {
+            kb_config.deep_sleep_timeout += SLEEP_TIMEOUT_STEP;
+        }
+        save_config_to_eeprom();
+        show_step(kb_config.deep_sleep_timeout);
     }
 }
 
@@ -990,6 +1015,13 @@ uint32_t get_sleep_timeout(void) {
     }
 
     return sleep_timeout * 60 * 1000 / TIMER_STEP;
+}
+
+uint32_t get_deep_sleep_timeout(void) {
+    if (kb_config.sleep_mode != SLEEP_MODE_DEEP) return 0;
+
+    uint8_t deep_sleep_timeout = kb_config.deep_sleep_timeout;
+    return deep_sleep_timeout * 60 * 1000 / TIMER_STEP;
 }
 
 void link_mode_set(void) {
