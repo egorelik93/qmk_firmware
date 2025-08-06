@@ -586,7 +586,7 @@ void dev_sts_sync(void) {
  */
 void uart_send_bytes(uint8_t *Buffer, uint32_t Length) {
     if (uart_repeat_flag) {
-        for (uint8_t i = 0; i < 3; i++)
+        for (uint8_t i = 0; i < uart_repeat_flag; i++)
         {
             Usart_Mgr.RXCmd = CMD_NULL; // reset before command sends.
             // Restrict to one command per ms for stability?
@@ -663,7 +663,7 @@ void uart_send_report(uint8_t report_type, uint8_t *report_buf, uint8_t report_s
     memcpy(&Usart_Mgr.TXDBuf[4], report_buf, report_size);
     Usart_Mgr.TXDBuf[4 + report_size] = get_checksum(&Usart_Mgr.TXDBuf[4], report_size);
 
-    uart_repeat_flag = 1;
+    uart_repeat_flag = 3; // Was originally a flag, but now driving the number of repeats.
 
     uart_send_bytes(&Usart_Mgr.TXDBuf[0], report_size + 5);
 
