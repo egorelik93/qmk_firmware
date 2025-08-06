@@ -565,8 +565,9 @@ void dev_sts_sync(void) {
      *  if RF is sleeping we don't want to sync and wakeup the RF
     */
     // TODO: adi
-    if (f_wakeup_prepare /* && f_rf_sleep */) { return; }
-    uart_send_cmd(CMD_RF_STS_SYSC, 1, 1);
+    //if (f_wakeup_prepare /* && f_rf_sleep */) { return; }
+    //uart_send_cmd(CMD_RF_STS_SYSC, 1, 1);
+    uart_send_cmd(CMD_RF_STS_SYSC, 1, 0);
 
     /* reset report repeat timer, might reduce repeat keys? */
     uart_rpt_timer = timer_read32();
