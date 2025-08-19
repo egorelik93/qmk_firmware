@@ -124,6 +124,7 @@ void sleep_handle(void) {
             // powered if USB port is on, or otherwise it's disconnected at the hardware level if USB port is off..
             if (kb_config.usb_sleep_toggle || USB_DRIVER.state == USB_SUSPENDED) {
                 break_all_key();
+                f_light_to_deep_sleep = 0;
                 enter_light_sleep();
             }
         // if not USB
@@ -131,14 +132,22 @@ void sleep_handle(void) {
         // ryodeushii: but charging -> light sleep
         } else if (kb_config.sleep_mode != SLEEP_MODE_OFF && ((dev_info.rf_charge & 0x01) != 0 || dev_info.rf_charge == 0x03)) {
             break_all_key();
+            f_light_to_deep_sleep = 0;
             enter_light_sleep();
             // otherwise -> deep sleep
-        } else if (kb_config.sleep_mode == SLEEP_MODE_DEEP && !f_light_to_deep_sleep) {
-            break_all_key(); // reset keys before sleeping for new QMK lifecycle to handle on wake.
+        } else if (kb_config.sleep_mode != SLEEP_MODE_OFF && f_light_to_deep_sleep) {
+            break_all_key();
+            enter_light_sleep();
+        } else if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
+            if (!f_wakeup_prepare) {
+                break_all_key(); // reset keys before sleeping for new QMK lifecycle to handle on wake.
+            }
+            f_wakeup_prepare = 0;
             deep_sleep_handle();
             return; // don't need to do anything else
         } else if (kb_config.sleep_mode == SLEEP_MODE_LIGHT) {
             break_all_key();
+            f_light_to_deep_sleep = 0;
             enter_light_sleep();
         }
 

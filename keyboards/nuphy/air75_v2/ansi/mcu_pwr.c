@@ -209,6 +209,8 @@ void matrix_scan_repeat(uint8_t repeat) {
  *       This is mostly Nuphy's unreleased logic with cleanup/refactoring by me.
  */
 void exit_deep_sleep(void) {
+    sleeping = false;
+
     // JinCao version
     // Matrix initialization & Scan
     /*extern void matrix_init_pins(void);
