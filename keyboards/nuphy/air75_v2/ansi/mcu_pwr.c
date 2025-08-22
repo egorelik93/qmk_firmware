@@ -160,8 +160,10 @@ void enter_deep_sleep(void) {
     gpio_set_pin_output(NRF_WAKEUP_PIN);
     gpio_write_pin_high(NRF_WAKEUP_PIN);
 
-    //clear_report_buffer_and_queue();
-    break_all_key();
+    // TODO: Not sure which it's supposed to be, but seems to not be the more
+    // complex version of break_all_key in JinCao1 and ryodeushii.
+    clear_report_buffer_and_queue();
+    //break_all_key();
 
     // Enter low power mode and wait for interrupt signal
     PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);
