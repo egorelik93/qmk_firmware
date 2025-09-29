@@ -138,7 +138,7 @@ void sleep_handle(void) {
             enter_light_sleep();
             // otherwise -> deep sleep
         } else if (kb_config.sleep_mode != SLEEP_MODE_OFF && f_light_to_deep_sleep) {
-            break_all_key();
+            // break_all_key();
             enter_light_sleep();
         } else if (kb_config.sleep_mode == SLEEP_MODE_DEEP) {
             break_all_key(); // reset keys before sleeping for new QMK lifecycle to handle on wake.
