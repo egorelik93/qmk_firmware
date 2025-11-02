@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "quantum.h"
 #include "ansi.h"
 #include "keycodes.h"
 #include QMK_KEYBOARD_H
@@ -167,7 +168,7 @@ tap_dance_action_t tap_dance_actions[] = {
     [TD_LCTL] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_F13, KC_LCTL, &lctl_double_tap),
 };
 
-#define EVIL_TAPPING_TERM 500
+#define EVIL_TAPPING_TERM 300
 
 static bool o_prefix_active = false;
 static bool u_prefix_active = false;
@@ -230,16 +231,16 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 && record->event.pressed
                 && !vi_command_sent) {
 
-                if (timer_elapsed(o_timer) >= EVIL_TAPPING_TERM ||
-                    timer_elapsed(u_timer) >= EVIL_TAPPING_TERM ||
-                    timer_elapsed(y_timer) >= EVIL_TAPPING_TERM) {
+                if ((o_prefix_active && timer_elapsed(o_timer) >= EVIL_TAPPING_TERM) ||
+                    (u_prefix_active && timer_elapsed(u_timer) >= EVIL_TAPPING_TERM) ||
+                    (y_prefix_active && timer_elapsed(y_timer) >= EVIL_TAPPING_TERM)) {
 
                     tap_code(KC_F14);
 
-                    if (timer_elapsed(u_timer) >= EVIL_TAPPING_TERM) {
+                    if (u_prefix_active && timer_elapsed(u_timer) >= EVIL_TAPPING_TERM) {
                         tap_code(KC_D);
                     }
-                    if (timer_elapsed(y_timer) >= EVIL_TAPPING_TERM) {
+                    if (y_prefix_active && timer_elapsed(y_timer) >= EVIL_TAPPING_TERM) {
                         tap_code(KC_Y);
                     }
                 }
