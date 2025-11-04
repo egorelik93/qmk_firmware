@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdint.h>
 #include "quantum.h"
 #include "ansi.h"
 #include "keycodes.h"
@@ -168,15 +169,17 @@ tap_dance_action_t tap_dance_actions[] = {
     [TD_LCTL] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_F13, KC_LCTL, &lctl_double_tap),
 };
 
-#define EVIL_TAPPING_TERM 300
+#define EVIL_TAPPING_TERM 150
 
 static bool o_prefix_active = false;
 static bool u_prefix_active = false;
 static bool y_prefix_active = false;
+static bool vi_command_incomplete = false;
 static bool vi_command_sent = false;
 static uint16_t o_timer = 0;
 static uint16_t u_timer = 0;
 static uint16_t y_timer = 0;
+static bool vi_ctrl_handling = false;
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     bool any_vi_prefix_active = o_prefix_active || u_prefix_active || y_prefix_active;
@@ -192,8 +195,19 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     return false;
                 }
             } else {
+                bool no_process = o_prefix_active;
+                if (o_prefix_active && !vi_command_sent) {
+                    tap_code(KC_O);
+                }
+
                 o_timer = 0;
                 o_prefix_active = false;
+
+                if (no_process) {
+                    vi_command_sent = false;
+                    vi_command_incomplete = false;
+                    return false;
+                }
             }
         case EVIL_U2D:
             if (record->event.pressed && !any_vi_prefix_active) {
@@ -203,8 +217,19 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     return false;
                 }
             } else {
+                bool no_process = u_prefix_active;
+                if (u_prefix_active && !vi_command_sent) {
+                    tap_code(KC_U);
+                }
+
                 u_timer = 0;
                 u_prefix_active = false;
+
+                if (no_process) {
+                    vi_command_sent = false;
+                    vi_command_incomplete = false;
+                    return false;
+                }
             }
         case EVIL_Y:
             if (record->event.pressed && !any_vi_prefix_active) {
@@ -214,8 +239,19 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     return false;
                 }
             } else {
+                bool no_process = y_prefix_active;
+                if (y_prefix_active && !vi_command_sent) {
+                    tap_code(KC_Y);
+                }
+
                 y_timer = 0;
                 y_prefix_active = false;
+
+                if (no_process) {
+                    vi_command_sent = false;
+                    vi_command_incomplete = false;
+                    return false;
+                }
             }
         // This adds extra keys in my current usage, but leaving commented as an example.
         /*case TD(TD_LGUI): // list all tap dance keycodes with tap-hold configurations
@@ -226,14 +262,24 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     (*tap_hold->double_tap_fn)();
                 }
             }*/
+        case TD(TD_LCTL):
+            if (vi_ctrl_handling & !record->event.pressed) {
+                unregister_mods(MOD_LCTL);
+                vi_ctrl_handling = false;
+                return false;
+            }
         default:
             if (any_vi_prefix_active
                 && record->event.pressed
-                && !vi_command_sent) {
+                && !vi_command_incomplete) {
 
-                if ((o_prefix_active && timer_elapsed(o_timer) >= EVIL_TAPPING_TERM) ||
-                    (u_prefix_active && timer_elapsed(u_timer) >= EVIL_TAPPING_TERM) ||
-                    (y_prefix_active && timer_elapsed(y_timer) >= EVIL_TAPPING_TERM)) {
+                uint16_t o_elapsed = timer_elapsed(o_timer);
+                uint16_t u_elapsed = timer_elapsed(u_timer);
+                uint16_t y_elapsed = timer_elapsed(y_timer);
+
+                if ((o_prefix_active && o_elapsed >= EVIL_TAPPING_TERM) ||
+                    (u_prefix_active && u_elapsed >= EVIL_TAPPING_TERM) ||
+                    (y_prefix_active && y_elapsed >= EVIL_TAPPING_TERM)) {
 
                     tap_code(KC_F14);
 
@@ -243,7 +289,35 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     if (y_prefix_active && timer_elapsed(y_timer) >= EVIL_TAPPING_TERM) {
                         tap_code(KC_Y);
                     }
+
+                    vi_command_sent = true;
+
+                    if (IS_MODIFIER_KEYCODE(keycode)) {
+                        vi_command_incomplete = true;
+                    }
+                    if (keycode == TD(TD_LCTL)) {
+                        vi_command_incomplete = true;
+                        vi_ctrl_handling = true;
+                        return false;
+                    }
+                } else if (o_prefix_active && o_elapsed < EVIL_TAPPING_TERM) {
+                    tap_code(KC_O);
+                    o_timer = 0;
+                    o_prefix_active = false;
+                } else if (u_prefix_active && u_elapsed < EVIL_TAPPING_TERM) {
+                    tap_code(KC_U);
+                    u_timer = 0;
+                    u_prefix_active = false;
+                } else if (y_prefix_active && y_elapsed < EVIL_TAPPING_TERM) {
+                    tap_code(KC_Y);
+                    y_timer = 0;
+                    y_prefix_active = false;
                 }
+            } else if (vi_command_incomplete && !IS_MODIFIER_KEYCODE(keycode) && record->event.pressed) {
+                if (vi_ctrl_handling) {
+                    register_mods(MOD_LCTL);
+                }
+                vi_command_incomplete = false;
             }
     }
     return true;
