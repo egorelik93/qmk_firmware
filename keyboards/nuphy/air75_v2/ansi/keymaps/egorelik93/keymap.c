@@ -35,6 +35,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 enum {
     TD_LGUI,
     TD_LCTL,
+    TD_LALT,
+    TD_RALT,
 };
 
 // clang-format off
@@ -66,7 +68,7 @@ TOG_CAPS_IND,    SLEEP_TIMEOUT_DEC,    SLEEP_TIMEOUT_SHOW,    SLEEP_TIMEOUT_INC,
     KC_TAB,     KC_Q,      KC_W,        KC_E,      KC_R,       KC_T,        EVIL_Y,    EVIL_U2D,   KC_I,        O_2_VI,   KC_P,       KC_LBRC,    KC_RBRC,                 KC_BSLS,    KC_PGUP,
     TD(TD_LCTL),KC_A,      KC_S,        KC_D,      KC_F,       KC_G,        KC_H,      KC_J,       KC_K,        KC_L,      KC_SCLN,    KC_QUOT,                             KC_ENT,     KC_PGDN,
     KC_LSFT,               KC_Z,        KC_X,      KC_C,       KC_V,        KC_B,      KC_N,       KC_M,        KC_COMM,   KC_DOT,     KC_SLSH,                 KC_RSFT,    KC_UP,      KC_END,
-    TD(TD_LGUI),MO(5),      KC_LALT,                                         KC_SPC,                             KC_RALT,   MO(3),      KC_RCTL,                 KC_LEFT,    KC_DOWN,    KC_RGHT),
+    TD(TD_LGUI),MO(5),     TD(TD_LALT),                                     KC_SPC,                         TD(TD_RALT),   MO(3),      KC_RCTL,                 KC_LEFT,    KC_DOWN,    KC_RGHT),
 
 // layer win Fn
 [3] = LAYOUT_75_ansi(
@@ -163,10 +165,20 @@ void lctl_double_tap(void) {
     tap_code(KC_F15);
 }
 
+void lalt_double_tap(void) {
+    tap_code(KC_F15);
+}
+
+void ralt_double_tap(void) {
+    tap_code(KC_F15);
+}
+
 // Tap Dance definitions
 tap_dance_action_t tap_dance_actions[] = {
     [TD_LGUI] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_LGUI, KC_LGUI, &lgui_command_palatte),
     [TD_LCTL] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_F13, KC_LCTL, &lctl_double_tap),
+    [TD_LALT] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_F13, KC_LALT, &lalt_double_tap),
+    [TD_RALT] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_F13, KC_RALT, &ralt_double_tap),
 };
 
 #define EVIL_TAPPING_TERM 150
@@ -179,7 +191,7 @@ static bool vi_command_sent = false;
 static uint16_t o_timer = 0;
 static uint16_t u_timer = 0;
 static uint16_t y_timer = 0;
-static bool vi_ctrl_handling = false;
+static uint16_t vi_mod_handling = 0;
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     bool any_vi_prefix_active = o_prefix_active || u_prefix_active || y_prefix_active;
@@ -263,9 +275,30 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
             }*/
         case TD(TD_LCTL):
-            if (vi_ctrl_handling & !record->event.pressed) {
+            if (vi_command_incomplete && record->event.pressed) {
+                vi_mod_handling |= MOD_LCTL;
+                return false;
+            } else if ((vi_mod_handling & MOD_LCTL) && !record->event.pressed) {
                 unregister_mods(MOD_LCTL);
-                vi_ctrl_handling = false;
+                vi_mod_handling &= ~MOD_LCTL;
+                return false;
+            }
+        case TD(TD_LALT):
+            if (vi_command_incomplete && record->event.pressed) {
+                vi_mod_handling |= MOD_LALT;
+                return false;
+            } else if ((vi_mod_handling & MOD_LALT) && !record->event.pressed) {
+                unregister_mods(MOD_LALT);
+                vi_mod_handling &= ~MOD_LALT;
+                return false;
+            }
+        case TD(TD_RALT):
+            if (vi_command_incomplete && record->event.pressed) {
+                vi_mod_handling |= MOD_RALT;
+                return false;
+            } if ((vi_mod_handling & MOD_RALT) && !record->event.pressed) {
+                unregister_mods(MOD_RALT);
+                vi_mod_handling &= ~MOD_RALT;
                 return false;
             }
         default:
@@ -294,10 +327,19 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
                     if (IS_MODIFIER_KEYCODE(keycode)) {
                         vi_command_incomplete = true;
-                    }
-                    if (keycode == TD(TD_LCTL)) {
+                    } else if (keycode == TD(TD_LCTL) || keycode == TD(TD_LALT) || keycode == TD(TD_RALT)) {
                         vi_command_incomplete = true;
-                        vi_ctrl_handling = true;
+
+                        if (keycode == TD(TD_LCTL)) {
+                            vi_mod_handling |= MOD_LCTL;
+                        }
+                        if (keycode == TD(TD_LALT)) {
+                            vi_mod_handling |= MOD_LALT;
+                        }
+                        if (keycode == TD(TD_RALT)) {
+                            vi_mod_handling |= MOD_RALT;
+                        }
+
                         return false;
                     }
                 } else if (o_prefix_active && o_elapsed < EVIL_TAPPING_TERM) {
@@ -313,9 +355,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     y_timer = 0;
                     y_prefix_active = false;
                 }
-            } else if (vi_command_incomplete && !IS_MODIFIER_KEYCODE(keycode) && record->event.pressed) {
-                if (vi_ctrl_handling) {
-                    register_mods(MOD_LCTL);
+            } else if (vi_command_incomplete
+                       && !IS_MODIFIER_KEYCODE(keycode)
+                       && record->event.pressed) {
+                if (vi_mod_handling) {
+                    register_mods(vi_mod_handling);
                 }
                 vi_command_incomplete = false;
             }
@@ -327,6 +371,8 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case CTL_T(KC_F13):
         case TD(TD_LCTL):
+        case TD(TD_LALT):
+        case TD(TD_RALT):
             return 200;
         default:
             return TAPPING_TERM;
@@ -336,6 +382,8 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
 bool get_permissive_hold(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case TD(TD_LCTL):
+        case TD(TD_LALT):
+        case TD(TD_RALT):
             // Immediately select the hold action when another key is tapped.
             return true;
         default:
