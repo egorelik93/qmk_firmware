@@ -188,6 +188,7 @@ typedef struct {
     bool prefix_active;
     uint16_t timer;
     uint16_t elapsed;
+    bool registered;
 } evil_letter_t;
 
 #define EVIL_LETTER(tap_code, evil_code)                                            \
@@ -241,11 +242,23 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     evil_letter_t* evil_letter = get_evil_letter(keycode);
     if (evil_letter != NULL) {
         if (record->event.pressed && !any_vi_prefix_active) {
+            if (get_mods()) {
+                register_code(evil_letter->tap);
+                evil_letter->registered = true;
+                return false;
+            }
+
             // While examples also check record->tap.interrupted,
             // for letter keys I do not want to accidentally hold
             if (!record->tap.count) {
                 evil_letter->prefix_active = true;
                 evil_letter->timer = timer_read();
+                return false;
+            }
+        } else if (evil_letter->registered) {
+            if (!record->event.pressed) {
+                unregister_code(evil_letter->tap);
+                evil_letter->registered = false;
                 return false;
             }
         } else {
