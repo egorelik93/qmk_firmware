@@ -32,6 +32,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define EVIL_U2D LT(2, KC_U)
 #define EVIL_Y LT(2, KC_Y)
 
+#define ARRAY_LEN(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 // Tap Dance declarations
 enum {
     TD_LGUI,
@@ -202,7 +204,6 @@ enum {
     EVIL_LETTER_O,
     EVIL_LETTER_U,
     EVIL_LETTER_Y,
-    EVIL_LETTER_LENGTH,
 };
 
 evil_letter_t evil_letters[] = {
@@ -210,6 +211,8 @@ evil_letter_t evil_letters[] = {
     [EVIL_LETTER_U] = EVIL_LETTER(KC_U, KC_D),
     [EVIL_LETTER_Y] = EVIL_LETTER(KC_Y, KC_Y)
 };
+
+#define EVIL_LETTER_LENGTH ARRAY_LEN(evil_letters)
 
 evil_letter_t* get_evil_letter(uint16_t keycode) {
     switch (keycode) {
@@ -219,6 +222,18 @@ evil_letter_t* get_evil_letter(uint16_t keycode) {
             return &evil_letters[EVIL_LETTER_U];
         case EVIL_Y:
             return &evil_letters[EVIL_LETTER_Y];
+        default:
+            return NULL;
+    }
+}
+
+tap_dance_double_tap_hold_t* get_double_tap_dance(uint16_t keycode) {
+    switch (keycode) {
+        case TD(TD_LCTL):
+        case TD(TD_LALT):
+        case TD(TD_RALT):
+            uint16_t td = keycode & 0xFF;
+            return (tap_dance_double_tap_hold_t*)(&tap_dance_actions[td].user_data);
         default:
             return NULL;
     }
@@ -277,6 +292,24 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         }
     }
 
+    tap_dance_double_tap_hold_t* double_tap_dance = get_double_tap_dance(keycode);
+    uint16_t double_tap_dance_mod = 0;
+    if (double_tap_dance != NULL) {
+        uint16_t hold = double_tap_dance->hold;
+        double_tap_dance_mod  = MOD_BIT(hold);
+
+        if (double_tap_dance_mod != 0) {
+            if (vi_command_incomplete && record->event.pressed) {
+                vi_mod_handling |= double_tap_dance_mod;
+                return false;
+            } else if ((vi_mod_handling & double_tap_dance_mod) && !record->event.pressed) {
+                unregister_mods(double_tap_dance_mod);
+                vi_mod_handling &= ~double_tap_dance_mod;
+                return false;
+            }
+        }
+    }
+
     switch (keycode) {
         // This adds extra keys in my current usage, but leaving commented as an example.
         /*case TD(TD_LGUI): // list all tap dance keycodes with tap-hold configurations
@@ -287,33 +320,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     (*tap_hold->double_tap_fn)();
                 }
             }*/
-        case TD(TD_LCTL):
-            if (vi_command_incomplete && record->event.pressed) {
-                vi_mod_handling |= MOD_LCTL;
-                return false;
-            } else if ((vi_mod_handling & MOD_LCTL) && !record->event.pressed) {
-                unregister_mods(MOD_LCTL);
-                vi_mod_handling &= ~MOD_LCTL;
-                return false;
-            }
-        case TD(TD_LALT):
-            if (vi_command_incomplete && record->event.pressed) {
-                vi_mod_handling |= MOD_LALT;
-                return false;
-            } else if ((vi_mod_handling & MOD_LALT) && !record->event.pressed) {
-                unregister_mods(MOD_LALT);
-                vi_mod_handling &= ~MOD_LALT;
-                return false;
-            }
-        case TD(TD_RALT):
-            if (vi_command_incomplete && record->event.pressed) {
-                vi_mod_handling |= MOD_RALT;
-                return false;
-            } if ((vi_mod_handling & MOD_RALT) && !record->event.pressed) {
-                unregister_mods(MOD_RALT);
-                vi_mod_handling &= ~MOD_RALT;
-                return false;
-            }
         default:
             if (any_vi_prefix_active
                 && record->event.pressed
@@ -342,18 +348,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
                     if (IS_MODIFIER_KEYCODE(keycode)) {
                         vi_command_incomplete = true;
-                    } else if (keycode == TD(TD_LCTL) || keycode == TD(TD_LALT) || keycode == TD(TD_RALT)) {
+                    } else if (double_tap_dance != NULL && double_tap_dance_mod != 0) {
                         vi_command_incomplete = true;
-
-                        if (keycode == TD(TD_LCTL)) {
-                            vi_mod_handling |= MOD_LCTL;
-                        }
-                        if (keycode == TD(TD_LALT)) {
-                            vi_mod_handling |= MOD_LALT;
-                        }
-                        if (keycode == TD(TD_RALT)) {
-                            vi_mod_handling |= MOD_RALT;
-                        }
+                        vi_mod_handling |= double_tap_dance_mod;
 
                         return false;
                     }
