@@ -182,89 +182,89 @@ tap_dance_action_t tap_dance_actions[] = {
     [TD_RALT] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_F13, KC_RALT, &ralt_double_tap),
 };
 
+typedef struct {
+    uint16_t tap;
+    uint16_t evil;
+    bool prefix_active;
+    uint16_t timer;
+    uint16_t elapsed;
+} evil_letter_t;
+
+#define EVIL_LETTER(tap_code, evil_code)                                            \
+    {                                                                               \
+        .tap           = tap_code,                                                  \
+        .evil          = evil_code                                                  \
+    }
+
+// Evil letter declarations
+enum {
+    EVIL_LETTER_O,
+    EVIL_LETTER_U,
+    EVIL_LETTER_Y,
+    EVIL_LETTER_LENGTH,
+};
+
+evil_letter_t evil_letters[] = {
+    [EVIL_LETTER_O] = EVIL_LETTER(KC_O, 0 /* O is special */),
+    [EVIL_LETTER_U] = EVIL_LETTER(KC_U, KC_D),
+    [EVIL_LETTER_Y] = EVIL_LETTER(KC_Y, KC_Y)
+};
+
+evil_letter_t* get_evil_letter(uint16_t keycode) {
+    switch (keycode) {
+        case O_2_VI:
+            return &evil_letters[EVIL_LETTER_O];
+        case EVIL_U2D:
+            return &evil_letters[EVIL_LETTER_U];
+        case EVIL_Y:
+            return &evil_letters[EVIL_LETTER_Y];
+        default:
+            return NULL;
+    }
+}
+
 #define EVIL_TAPPING_TERM 150
 
-static bool o_prefix_active = false;
-static bool u_prefix_active = false;
-static bool y_prefix_active = false;
 static bool vi_command_incomplete = false;
 static bool vi_command_sent = false;
-static uint16_t o_timer = 0;
-static uint16_t u_timer = 0;
-static uint16_t y_timer = 0;
 static uint16_t vi_mod_handling = 0;
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    bool any_vi_prefix_active = o_prefix_active || u_prefix_active || y_prefix_active;
+    bool any_vi_prefix_active = false;
+    for (int i = 0; i < EVIL_LETTER_LENGTH; i++) {
+        if (evil_letters[i].prefix_active) {
+            any_vi_prefix_active = true;
+            break;
+        }
+    }
+
+    evil_letter_t* evil_letter = get_evil_letter(keycode);
+    if (evil_letter != NULL) {
+        if (record->event.pressed && !any_vi_prefix_active) {
+            // While examples also check record->tap.interrupted,
+            // for letter keys I do not want to accidentally hold
+            if (!record->tap.count) {
+                evil_letter->prefix_active = true;
+                evil_letter->timer = timer_read();
+                return false;
+            }
+        } else {
+            bool no_process = evil_letter->prefix_active;
+            if (evil_letter->prefix_active && !vi_command_sent) {
+                tap_code(evil_letter->tap);
+            }
+            evil_letter->timer = 0;
+            evil_letter->prefix_active = false;
+
+            if (no_process) {
+                vi_command_sent = false;
+                vi_command_incomplete = false;
+                return false;
+            }
+        }
+    }
 
     switch (keycode) {
-        case O_2_VI:
-            if (record->event.pressed && !any_vi_prefix_active) {
-                // While examples also check record->tap.interrupted,
-                // for letter keys I do not want to accidentally hold
-                if (!record->tap.count) {
-                    o_prefix_active = true;
-                    o_timer = timer_read();
-                    return false;
-                }
-            } else {
-                bool no_process = o_prefix_active;
-                if (o_prefix_active && !vi_command_sent) {
-                    tap_code(KC_O);
-                }
-                o_timer = 0;
-                o_prefix_active = false;
-
-                if (no_process) {
-                    vi_command_sent = false;
-                    vi_command_incomplete = false;
-                    return false;
-                }
-            }
-        case EVIL_U2D:
-            if (record->event.pressed && !any_vi_prefix_active) {
-                if (!record->tap.count && !get_mods()) {
-                    u_prefix_active = true;
-                    u_timer = timer_read();
-                    return false;
-                }
-            } else {
-                bool no_process = u_prefix_active;
-                if (u_prefix_active && !vi_command_sent) {
-                    tap_code(KC_U);
-                }
-
-                u_timer = 0;
-                u_prefix_active = false;
-
-                if (no_process) {
-                    vi_command_sent = false;
-                    vi_command_incomplete = false;
-                    return false;
-                }
-            }
-        case EVIL_Y:
-            if (record->event.pressed && !any_vi_prefix_active) {
-                if (!record->tap.count && !get_mods()) {
-                    y_prefix_active = true;
-                    y_timer = timer_read();
-                    return false;
-                }
-            } else {
-                bool no_process = y_prefix_active;
-                if (y_prefix_active && !vi_command_sent) {
-                    tap_code(KC_Y);
-                }
-
-                y_timer = 0;
-                y_prefix_active = false;
-
-                if (no_process) {
-                    vi_command_sent = false;
-                    vi_command_incomplete = false;
-                    return false;
-                }
-            }
         // This adds extra keys in my current usage, but leaving commented as an example.
         /*case TD(TD_LGUI): // list all tap dance keycodes with tap-hold configurations
             tap_dance_action_t *action = &tap_dance_actions[QK_TAP_DANCE_GET_INDEX(keycode)];
@@ -306,21 +306,23 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 && record->event.pressed
                 && !vi_command_incomplete) {
 
-                uint16_t o_elapsed = timer_elapsed(o_timer);
-                uint16_t u_elapsed = timer_elapsed(u_timer);
-                uint16_t y_elapsed = timer_elapsed(y_timer);
+                bool any_evil_actions = false;
+                for (int i = 0; i < EVIL_LETTER_LENGTH; i++) {
+                    evil_letters[i].elapsed = timer_elapsed(evil_letters[i].timer);
 
-                if ((o_prefix_active && o_elapsed >= EVIL_TAPPING_TERM) ||
-                    (u_prefix_active && u_elapsed >= EVIL_TAPPING_TERM) ||
-                    (y_prefix_active && y_elapsed >= EVIL_TAPPING_TERM)) {
+                    any_evil_actions |=
+                        (evil_letters[i].prefix_active && evil_letters[i].elapsed >= EVIL_TAPPING_TERM);
+                }
+
+                if (any_evil_actions) {
 
                     tap_code(KC_F14);
 
-                    if (u_prefix_active && timer_elapsed(u_timer) >= EVIL_TAPPING_TERM) {
-                        tap_code(KC_D);
-                    }
-                    if (y_prefix_active && timer_elapsed(y_timer) >= EVIL_TAPPING_TERM) {
-                        tap_code(KC_Y);
+                    for (int i = EVIL_LETTER_O + 1; i < EVIL_LETTER_LENGTH; i++) {
+                        if (evil_letters[i].prefix_active && evil_letters[i].elapsed >= EVIL_TAPPING_TERM) {
+                            tap_code(evil_letters[i].evil);
+                            break;
+                        }
                     }
 
                     vi_command_sent = true;
@@ -342,18 +344,15 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
                         return false;
                     }
-                } else if (o_prefix_active && o_elapsed < EVIL_TAPPING_TERM) {
-                    tap_code(KC_O);
-                    o_timer = 0;
-                    o_prefix_active = false;
-                } else if (u_prefix_active && u_elapsed < EVIL_TAPPING_TERM) {
-                    tap_code(KC_U);
-                    u_timer = 0;
-                    u_prefix_active = false;
-                } else if (y_prefix_active && y_elapsed < EVIL_TAPPING_TERM) {
-                    tap_code(KC_Y);
-                    y_timer = 0;
-                    y_prefix_active = false;
+                } else {
+                    for (int i = 0; i < EVIL_LETTER_LENGTH; i++) {
+                        if (evil_letters[i].prefix_active && evil_letters[i].elapsed < EVIL_TAPPING_TERM) {
+                            tap_code(evil_letters[i].tap);
+                            evil_letters[i].timer = 0;
+                            evil_letters[i].prefix_active = false;
+                            break;
+                        }
+                    }
                 }
             } else if (vi_command_incomplete
                        && !IS_MODIFIER_KEYCODE(keycode)
