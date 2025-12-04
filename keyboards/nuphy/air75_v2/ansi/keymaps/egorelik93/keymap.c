@@ -32,6 +32,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define EVIL_U2D LT(2, KC_U)
 #define EVIL_Y LT(2, KC_Y)
 
+// Bizarrely, F16 and F17 cannot be intercepted in Windows Terminal.
+// F19 seems to be a nop in WSLg.
+#define LALT_TAP    LALT(KC_F13)
+#define RALT_TAP    RALT(KC_F13)
+#define LALT_2TAP   LALT(KC_F14)
+#define RALT_2TAP   RALT(KC_F14)
+#define LCTL_TAP    LCTL(KC_F15)
+#define LCTL_2TAP   LCTL(KC_F18)
+#define EVIL_PREFIX KC_F16
+
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 // Tap Dance declarations
@@ -51,9 +61,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_ESC,     KC_F1,     KC_F2,       KC_F3,     KC_F4,      KC_F5,       KC_F6,     KC_F7,      KC_F8,       KC_F9,     KC_F10,     KC_F11,     KC_F12,      KC_MUTE,    KC_INS,     KC_DEL,
     KC_GRV,     KC_1,      KC_2,        KC_3,      KC_4,       KC_5,        KC_6,      KC_7,       KC_8,        KC_9,      KC_0,       KC_MINS,    KC_EQL,                  KC_BSPC,    KC_HOME,
     KC_TAB,     KC_Q,      KC_W,        KC_E,      KC_R,       KC_T,        KC_Y,      KC_U,       KC_I,        KC_O,      KC_P,       KC_LBRC,    KC_RBRC,                 KC_BSLS,    KC_PGUP,
-  CTL_T(KC_F13),KC_A,      KC_S,        KC_D,      KC_F,       KC_G,        KC_H,      KC_J,       KC_K,        KC_L,      KC_SCLN,    KC_QUOT,                             KC_ENT,     KC_PGDN,
+CTL_T(LCTL_TAP),KC_A,      KC_S,        KC_D,      KC_F,       KC_G,        KC_H,      KC_J,       KC_K,        KC_L,      KC_SCLN,    KC_QUOT,                             KC_ENT,     KC_PGDN,
     KC_LSFT,               KC_Z,        KC_X,      KC_C,       KC_V,        KC_B,      KC_N,       KC_M,        KC_COMM,   KC_DOT,     KC_SLSH,                 KC_RSFT,    KC_UP,      KC_END,
-    KC_LGUI,    MO(5),      KC_LALT,                                         KC_SPC,                             KC_RALT,   MO(3),      KC_RCTL,                 KC_LEFT,    KC_DOWN,    KC_RGHT),
+    KC_LGUI,    MO(5),     LALT_T(LALT_TAP),                                KC_SPC,                RALT_T(RALT_TAP),       MO(3),      KC_RCTL,                 KC_LEFT,    KC_DOWN,    KC_RGHT),
 
 // layer Mac Fn
 [1] = LAYOUT_75_ansi(
@@ -165,23 +175,23 @@ void lgui_command_palatte(void) {
 }
 
 void lctl_double_tap(void) {
-    tap_code(KC_F17);
+    tap_code16(LCTL_2TAP);
 }
 
 void lalt_double_tap(void) {
-    tap_code(KC_F15);
+    tap_code16(LALT_2TAP);
 }
 
 void ralt_double_tap(void) {
-    tap_code(KC_F15);
+    tap_code16(RALT_2TAP);
 }
 
 // Tap Dance definitions
 tap_dance_action_t tap_dance_actions[] = {
     [TD_LGUI] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_LGUI, KC_LGUI, &lgui_command_palatte),
-    [TD_LCTL] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_F16, KC_LCTL, &lctl_double_tap),
-    [TD_LALT] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_F13, KC_LALT, &lalt_double_tap),
-    [TD_RALT] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(KC_F13, KC_RALT, &ralt_double_tap),
+    [TD_LCTL] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(LCTL_TAP, KC_LCTL, &lctl_double_tap),
+    [TD_LALT] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(LALT_TAP, KC_LALT, &lalt_double_tap),
+    [TD_RALT] = ACTION_TAP_DANCE_DOUBLE_TAP_HOLD(RALT_TAP, KC_RALT, &ralt_double_tap),
 };
 
 typedef struct {
@@ -279,7 +289,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         } else {
             bool no_process = evil_letter->prefix_active;
             if (evil_letter->prefix_active && !vi_command_sent) {
-                tap_code(evil_letter->tap);
+                tap_code16(evil_letter->tap);
             }
             evil_letter->timer = 0;
             evil_letter->prefix_active = false;
@@ -335,11 +345,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
                 if (any_evil_actions) {
 
-                    tap_code(KC_F14);
+                    tap_code16(EVIL_PREFIX);
 
                     for (int i = EVIL_LETTER_O + 1; i < EVIL_LETTER_LENGTH; i++) {
                         if (evil_letters[i].prefix_active && evil_letters[i].elapsed >= EVIL_TAPPING_TERM) {
-                            tap_code(evil_letters[i].evil);
+                            tap_code16(evil_letters[i].evil);
                             break;
                         }
                     }
@@ -357,7 +367,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 } else {
                     for (int i = 0; i < EVIL_LETTER_LENGTH; i++) {
                         if (evil_letters[i].prefix_active && evil_letters[i].elapsed < EVIL_TAPPING_TERM) {
-                            tap_code(evil_letters[i].tap);
+                            tap_code16(evil_letters[i].tap);
                             evil_letters[i].timer = 0;
                             evil_letters[i].prefix_active = false;
                             break;
@@ -378,7 +388,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
 uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
-        case CTL_T(KC_F13):
+        case CTL_T(LCTL_TAP):
+        case LALT_T(LALT_TAP):
+        case RALT_T(RALT_TAP):
         case TD(TD_LCTL):
         case TD(TD_LALT):
         case TD(TD_RALT):
