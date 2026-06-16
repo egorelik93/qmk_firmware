@@ -28,6 +28,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DSLEEP_TIMEOUT_DEC DEEP_SLEEP_TIMEOUT_DEC
 #define DSLEEP_TIMEOUT_SHOW DEEP_SLEEP_TIMEOUT_SHOW
 
+// If using evil letters in the layout, uncomment this
+//#define PROCESS_EVIL_LETTERS
+
 #define O_2_VI LT(2, KC_O)
 #define EVIL_U2D LT(2, KC_U)
 #define EVIL_Y LT(2, KC_Y)
@@ -78,7 +81,7 @@ TOG_CAPS_IND,    SLEEP_TIMEOUT_DEC,    SLEEP_TIMEOUT_SHOW,    SLEEP_TIMEOUT_INC,
 [2] = LAYOUT_75_ansi(
     KC_ESC,     KC_F1,     KC_F2,       KC_F3,     KC_F4,      KC_F5,       KC_F6,     KC_F7,      KC_F8,       KC_F9,     KC_F10,     KC_F11,     KC_F12,      KC_MUTE,    KC_INS,     KC_DEL,
     KC_GRV,     KC_1,      KC_2,        KC_3,      KC_4,       KC_5,        KC_6,      KC_7,       KC_8,        KC_9,      KC_0,       KC_MINS,    KC_EQL,                  KC_BSPC,    KC_HOME,
-    KC_TAB,     KC_Q,      KC_W,        KC_E,      KC_R,       KC_T,        EVIL_Y,    EVIL_U2D,   KC_I,        O_2_VI,    KC_P,       KC_LBRC,    KC_RBRC,                 KC_BSLS,    KC_PGUP,
+    KC_TAB,     KC_Q,      KC_W,        KC_E,      KC_R,       KC_T,        KC_Y,      KC_U,       KC_I,        KC_O,      KC_P,       KC_LBRC,    KC_RBRC,                 KC_BSLS,    KC_PGUP,
     TD(TD_LCTL),KC_A,      KC_S,        KC_D,      KC_F,       KC_G,        KC_H,      KC_J,       KC_K,        KC_L,      KC_SCLN,    KC_QUOT,                             KC_ENT,     KC_PGDN,
     KC_LSFT,               KC_Z,        KC_X,      KC_C,       KC_V,        KC_B,      KC_N,       KC_M,        KC_COMM,   KC_DOT,     KC_SLSH,                 KC_RSFT,    KC_UP,      KC_END,
     TD(TD_LGUI),MO(5),     TD(TD_LALT),                                     KC_SPC,                         TD(TD_RALT),   MO(3),      KC_RCTL,                 KC_LEFT,    KC_DOWN,    KC_RGHT),
@@ -251,11 +254,14 @@ tap_dance_double_tap_hold_t* get_double_tap_dance(uint16_t keycode) {
 
 #define EVIL_TAPPING_TERM 150
 
+#ifdef PROCESS_EVIL_LETTERS
 static bool vi_command_incomplete = false;
 static bool vi_command_sent = false;
 static uint16_t vi_mod_handling = 0;
+#endif
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+#ifdef PROCESS_EVIL_LETTERS
     bool any_vi_prefix_active = false;
     for (int i = 0; i < EVIL_LETTER_LENGTH; i++) {
         if (evil_letters[i].prefix_active) {
@@ -319,6 +325,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
         }
     }
+#endif
 
     switch (keycode) {
         // This adds extra keys in my current usage, but leaving commented as an example.
@@ -331,6 +338,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
             }*/
         default:
+#ifdef PROCESS_EVIL_LETTERS
             if (any_vi_prefix_active
                 && record->event.pressed
                 && !vi_command_incomplete) {
@@ -382,6 +390,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
                 vi_command_incomplete = false;
             }
+#endif
     }
     return true;
 }
